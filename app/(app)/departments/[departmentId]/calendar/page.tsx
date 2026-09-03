@@ -1,5 +1,10 @@
 'use client'
 
-export default function Page() {
-  return <div className="p-6 text-sm text-muted-foreground">calendar — coming in a later phase</div>
+import { WorkspaceFrame } from '@/components/workspace/workspace-frame'
+import { CalendarView } from '@/components/views/calendar-view'
+
+export default function CalendarPage() {
+  return (
+    <WorkspaceFrame layout="calendar">{({ flat, ctx }) => <CalendarView items={flat} ctx={ctx} />}</WorkspaceFrame>
+  )
 }

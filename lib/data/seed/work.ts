@@ -9,7 +9,7 @@ import type {
   Priority,
   WorkItem,
 } from '@/lib/types'
-import { DEPARTMENT_KEY_PREFIX } from './config'
+import { DEPARTMENT_KEY_PREFIX, statuses as allStatuses } from './config'
 import { isoDaysFromNow, isoMinutesAgo, makeRandom, pick } from './helpers'
 
 /**
@@ -275,6 +275,30 @@ export interface WorkSeed {
   comments: Comment[]
 }
 
+/**
+ * Work that has actually been picked up has a start date; work sitting
+ * in a backlog does not. Deriving it from the status category rather
+ * than hand-writing it on every spec keeps the timeline honest — a bar
+ * only spans days when the work really is in flight.
+ */
+const CATEGORY_BY_STATUS = new Map(allStatuses.map((status) => [status.id, status.category]))
+
+function impliedStartOffset(spec: ItemSpec, index: number): number | undefined {
+  if (spec.start !== undefined) return spec.start
+
+  const category = CATEGORY_BY_STATUS.get(spec.status)
+  if (category !== 'started' && category !== 'review' && category !== 'completed') return undefined
+
+  // Deterministic 3–9 day run-up, varied by position so bars do not all
+  // begin on the same day and stack into one vertical stripe.
+  const run = 3 + (index % 7)
+
+  if (category === 'completed') {
+    return spec.completedDaysAgo !== undefined ? -(spec.completedDaysAgo + run) : -run
+  }
+  return spec.due !== undefined ? spec.due - run : -run
+}
+
 export function buildWorkSeed(now: Date): WorkSeed {
   const specs = [...ENGINEERING, ...generateSpecs()]
 
@@ -285,7 +309,7 @@ export function buildWorkSeed(now: Date): WorkSeed {
   // Board position within a status column, assigned in declaration order.
   const orderByStatus = new Map<string, number>()
 
-  for (const spec of specs) {
+  specs.forEach((spec, specIndex) => {
     const id = `wi-${spec.dept.replace('dept-', '').slice(0, 3)}-${spec.n}`
     const prefix = DEPARTMENT_KEY_PREFIX[spec.dept] ?? 'WRK'
     const nextOrder = (orderByStatus.get(spec.status) ?? 0) + 1
@@ -323,7 +347,10 @@ export function buildWorkSeed(now: Date): WorkSeed {
       assigneeId: spec.assignee,
       reporterId: spec.assignee === 'u-sai' ? 'u-aditya' : 'u-sai',
       labelIds: spec.labels ?? [],
-      startDate: spec.start !== undefined ? isoDaysFromNow(now, spec.start) : null,
+      startDate: (() => {
+        const offset = impliedStartOffset(spec, specIndex)
+        return offset === undefined ? null : isoDaysFromNow(now, offset, 9)
+      })(),
       dueDate: spec.due !== undefined ? isoDaysFromNow(now, spec.due, 17) : null,
       customFields: spec.cf ?? {},
       checklistId,
@@ -332,7 +359,7 @@ export function buildWorkSeed(now: Date): WorkSeed {
       updatedAt: isoMinutesAgo(now, spec.updatedMinutesAgo ?? 600),
       completedAt: spec.completedDaysAgo !== undefined ? isoDaysFromNow(now, -spec.completedDaysAgo, 16) : null,
     })
-  }
+  })
 
   /* --- The payments chain, PRD §23 ------------------------------- *
    * ENG-120 → ENG-124 → ENG-131 → ENG-140. Stored one way only; the

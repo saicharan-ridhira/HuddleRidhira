@@ -1,5 +1,10 @@
 'use client'
 
-export default function Page() {
-  return <div className="p-6 text-sm text-muted-foreground">timeline — coming in a later phase</div>
+import { WorkspaceFrame } from '@/components/workspace/workspace-frame'
+import { TimelineView } from '@/components/views/timeline-view'
+
+export default function TimelinePage() {
+  return (
+    <WorkspaceFrame layout="timeline">{({ flat, ctx }) => <TimelineView items={flat} ctx={ctx} />}</WorkspaceFrame>
+  )
 }
