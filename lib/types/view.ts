@@ -16,6 +16,7 @@ export const FILTER_FIELDS = [
   'department',
   'blocked',
   'overdue',
+  'rock',
   'dueDate',
   'reporter',
   'title',

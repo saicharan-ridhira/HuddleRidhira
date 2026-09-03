@@ -27,6 +27,7 @@ const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string 
       { href: '/settings/labels', label: 'Labels' },
       { href: '/settings/work-item-types', label: 'Work item types' },
       { href: '/settings/custom-fields', label: 'Custom fields' },
+      { href: '/settings/metrics', label: 'Metrics & KPIs' },
     ],
   },
   {

@@ -1,3 +1,4 @@
+import type { CriticalNumber } from './metrics'
 import type { Hue, Id, ISODate, ViewLayout } from './primitives'
 
 export type HuddleCadence = 'daily' | 'weekdays' | 'weekly' | 'none'
@@ -105,4 +106,6 @@ export interface Department {
    * decorative.
    */
   leadId: Id
+  /** The one metric this department is pushing this quarter, if it has named one. */
+  criticalNumber: CriticalNumber | null
 }

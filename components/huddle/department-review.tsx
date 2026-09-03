@@ -7,6 +7,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { HuddleWorkRow } from './huddle-work-row'
 import { Discussion } from './discussion'
 import { DynamicIcon, UserAvatar } from '@/components/primitives'
+import { HuddleScorecard } from '@/components/metrics'
 import { attentionOf, huddleAgenda, workStats } from '@/lib/engine/derive'
 import type { EngineContext } from '@/lib/engine/context'
 import type { Department, Huddle, User, WorkItem } from '@/lib/types'
@@ -100,6 +101,12 @@ export function DepartmentReview({
             </div>
           </div>
         </header>
+
+        {/* Numbers first, then issues — the order a Scaling Up huddle
+            runs in, and the reason anyone keeps the scorecard current. */}
+        <div className="mb-4">
+          <HuddleScorecard department={department} ctx={ctx} />
+        </div>
 
         <div className="mb-2 flex items-baseline gap-2">
           <h3 className="text-[13px] font-semibold">

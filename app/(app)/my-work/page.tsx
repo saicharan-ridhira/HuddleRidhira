@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/views/list-view'
 import { GroupMenu } from '@/components/workspace/group-menu'
 import { SortMenu } from '@/components/workspace/sort-menu'
 import { UserAvatar, StatusIcon, PriorityIndicator } from '@/components/primitives'
+import { ShowMore, visibleInGroup } from '@/components/shared/pagination'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAllWorkItems, useCurrentUser, useEngineContext, useUsers } from '@/lib/store/selectors'
 import { useStore } from '@/lib/store/store'
@@ -48,6 +49,7 @@ function MyWork() {
     { id: 'mw-2', field: 'dueDate', direction: 'asc' },
   ])
   const [scope, setScope] = useState<'open' | 'all'>('open')
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
   const mine = useMemo(() => {
     const owned = items.filter((item) => item.assigneeId === subject?.id)
@@ -102,7 +104,11 @@ function MyWork() {
         <EmptyState message="Nothing assigned." />
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
-          {groups.map((group) => (
+          {groups.map((group) => {
+            const isExpanded = expanded[group.key] ?? false
+            const { visible, hidden } = visibleInGroup(group.items, isExpanded)
+
+            return (
             <section key={group.key}>
               <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-background/95 px-4 py-1.5 backdrop-blur">
                 {groupBy === 'status' && ctx.statuses[group.key] && (
@@ -116,7 +122,7 @@ function MyWork() {
                 <span className="text-[11px] tabular-nums text-muted-foreground">{group.items.length}</span>
               </header>
 
-              {group.items.map((item) => (
+              {visible.map((item) => (
                 <WorkRow
                   key={item.id}
                   item={item}
@@ -126,8 +132,16 @@ function MyWork() {
                   onOpen={openWorkItem}
                 />
               ))}
+
+              <ShowMore
+                hidden={hidden}
+                expanded={isExpanded}
+                onToggle={() => setExpanded((previous) => ({ ...previous, [group.key]: !isExpanded }))}
+                noun="in this group"
+              />
             </section>
-          ))}
+            )
+          })}
         </div>
       )}
     </>

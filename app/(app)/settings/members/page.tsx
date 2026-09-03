@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { UserAvatar } from '@/components/primitives'
+import { Pagination, usePagination } from '@/components/shared/pagination'
 import { useAllWorkItems, useDepartments, useEngineContext, useRoles, useUsers } from '@/lib/store/selectors'
 import { useStore } from '@/lib/store/store'
 import { configService } from '@/lib/services'
@@ -61,6 +62,8 @@ export default function MembersSettingsPage() {
         ),
     [users, departmentFilter, query],
   )
+
+  const pagination = usePagination(filtered, 25)
 
   const openCreate = () => {
     setDraft(emptyDraft(roles[roles.length - 1]?.id ?? ''))
@@ -231,7 +234,7 @@ export default function MembersSettingsPage() {
       }
     >
       <div className="overflow-hidden rounded-lg border border-border">
-        {filtered.map((user) => {
+        {pagination.items.map((user) => {
           const owned = items.filter((item) => item.assigneeId === user.id && !isDone(item, ctx))
           const blocked = owned.filter((item) => isBlocked(item.id, ctx)).length
           const headOf = departments.filter((department) => department.leadId === user.id)
@@ -315,6 +318,8 @@ export default function MembersSettingsPage() {
         {filtered.length === 0 && (
           <p className="px-3 py-8 text-center text-[13px] text-muted-foreground">Nobody matches that search.</p>
         )}
+
+        {filtered.length > 0 && <Pagination state={pagination} itemLabel="people" className="border-t-0" />}
       </div>
 
       <EntityDialog

@@ -9,6 +9,7 @@ import type {
   Priority,
   WorkItem,
 } from '@/lib/types'
+import { quarterOf } from '@/lib/engine/periods'
 import { DEPARTMENT_KEY_PREFIX, statuses as allStatuses } from './config'
 import { isoDaysFromNow, isoMinutesAgo, makeRandom, pick } from './helpers'
 
@@ -34,6 +35,8 @@ interface ItemSpec {
   /** [checklist title, completed items, outstanding items] */
   checklist?: [string, string[], string[]]
   cf?: Record<string, CustomFieldValue>
+  /** Marks the item a Rock for the current quarter. */
+  rock?: boolean
   createdDaysAgo?: number
   updatedMinutesAgo?: number
   completedDaysAgo?: number
@@ -60,6 +63,7 @@ const ENGINEERING: ItemSpec[] = [
   },
   {
     n: 124,
+    rock: true,
     title: 'Payment API',
     dept: 'dept-engineering', type: 'wt-feature', status: 'st-eng-dev', assignee: 'u-sai',
     priority: 'high', due: 2, start: -6, labels: ['lbl-payments', 'lbl-backend', 'lbl-feature'],
@@ -130,11 +134,11 @@ const ENGINEERING: ItemSpec[] = [
     desc: 'Final visual sign-off on the checkout redesign before build starts.',
     createdDaysAgo: 7, updatedMinutesAgo: 300,
   },
-  { n: 122, title: 'TypeScript SDK v2', dept: 'dept-engineering', type: 'wt-feature', status: 'st-eng-dev', assignee: 'u-rahul', priority: 'high', due: 3, labels: ['lbl-backend', 'lbl-feature'], desc: 'Generated client with typed responses and retries.', checklist: ['SDK', ['Codegen', 'Retries'], ['Docs', 'Examples', 'Publish pipeline']], cf: { 'cf-release': 'v2.4', 'cf-story-points': 8 }, createdDaysAgo: 13, updatedMinutesAgo: 95 },
+  { n: 122, rock: true, title: 'TypeScript SDK v2', dept: 'dept-engineering', type: 'wt-feature', status: 'st-eng-dev', assignee: 'u-rahul', priority: 'high', due: 3, labels: ['lbl-backend', 'lbl-feature'], desc: 'Generated client with typed responses and retries.', checklist: ['SDK', ['Codegen', 'Retries'], ['Docs', 'Examples', 'Publish pipeline']], cf: { 'cf-release': 'v2.4', 'cf-story-points': 8 }, createdDaysAgo: 13, updatedMinutesAgo: 95 },
   { n: 128, title: 'SDK reference documentation', dept: 'dept-engineering', type: 'wt-task', status: 'st-eng-ready', assignee: 'u-rahul', priority: 'medium', due: 8, labels: ['lbl-docs'], desc: 'Reference pages generated from the SDK source.', createdDaysAgo: 9, updatedMinutesAgo: 1300 },
   { n: 135, title: 'Review: payments PR #482', dept: 'dept-engineering', type: 'wt-task', status: 'st-eng-review', assignee: 'u-rahul', priority: 'high', due: 0, labels: ['lbl-payments'], desc: 'Outstanding review blocking the payments branch merge.', createdDaysAgo: 2, updatedMinutesAgo: 45 },
   { n: 108, title: 'Session storage migration', dept: 'dept-engineering', type: 'wt-task', status: 'st-eng-done', assignee: 'u-rahul', priority: 'medium', labels: ['lbl-infrastructure'], desc: 'Move sessions off sticky instances.', completedDaysAgo: 4, createdDaysAgo: 24, updatedMinutesAgo: 5700 },
-  { n: 116, title: 'Design system tokens', dept: 'dept-engineering', type: 'wt-story', status: 'st-eng-dev', assignee: 'u-priya', priority: 'medium', due: 4, labels: ['lbl-frontend'], desc: 'Single token source shared by web and mobile.', checklist: ['Tokens', ['Colour', 'Spacing'], ['Typography', 'Motion']], createdDaysAgo: 15, updatedMinutesAgo: 480 },
+  { n: 116, rock: true, title: 'Design system tokens', dept: 'dept-engineering', type: 'wt-story', status: 'st-eng-dev', assignee: 'u-priya', priority: 'medium', due: 4, labels: ['lbl-frontend'], desc: 'Single token source shared by web and mobile.', checklist: ['Tokens', ['Colour', 'Spacing'], ['Typography', 'Motion']], createdDaysAgo: 15, updatedMinutesAgo: 480 },
   { n: 139, title: 'Empty states audit', dept: 'dept-engineering', type: 'wt-task', status: 'st-eng-backlog', assignee: 'u-priya', priority: 'low', labels: ['lbl-frontend'], desc: 'Every list view needs a real empty state.', createdDaysAgo: 6, updatedMinutesAgo: 3200 },
   { n: 119, title: 'Notification preferences', dept: 'dept-engineering', type: 'wt-feature', status: 'st-eng-dev', assignee: 'u-ananya', priority: 'medium', due: -2, labels: ['lbl-feature'], desc: 'Per-channel notification settings. Slipped past its due date.', createdDaysAgo: 14, updatedMinutesAgo: 1800 },
   { n: 130, title: 'Bulk edit on the board', dept: 'dept-engineering', type: 'wt-feature', status: 'st-eng-ready', assignee: 'u-ananya', priority: 'medium', due: 6, labels: ['lbl-frontend', 'lbl-feature'], desc: 'Multi-select and apply a change to every selected item.', createdDaysAgo: 8, updatedMinutesAgo: 2200 },
@@ -306,14 +310,22 @@ function generateSpecs(): ItemSpec[] {
   const specs: ItemSpec[] = []
 
   for (const gen of GENERATED) {
+    // Three quarterly Rocks per department, taken from the work that is
+    // actually in flight — a Rock nobody has started is a wish.
+    let rocksLeft = 3
+
     gen.titles.forEach((title, index) => {
       const backlogStatus = gen.statusIds[0]!
       const status = random() < gen.backlogShare ? backlogStatus : pick(random, gen.statusIds)
       const isFinal = status === gen.statusIds[gen.statusIds.length - 1]
       const dueOffset = Math.floor(random() * 34) - 8
 
+      const rock = !isFinal && status !== backlogStatus && rocksLeft > 0
+      if (rock) rocksLeft--
+
       specs.push({
         n: gen.startNumber + index,
+        rock,
         title,
         dept: gen.dept,
         type: pick(random, gen.types),
@@ -414,6 +426,7 @@ export function buildWorkSeed(now: Date): WorkSeed {
 
     workItems.push({
       id,
+      rockQuarter: spec.rock ? quarterOf(now) : null,
       key: `${prefix}-${spec.n}`,
       title: spec.title,
       description: spec.desc ?? '',

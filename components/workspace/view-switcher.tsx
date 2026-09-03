@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   CalendarDays,
   GanttChartSquare,
+  Gauge,
   KanbanSquare,
   LayoutList,
   Table2,
@@ -30,6 +31,7 @@ const VIEWS: Array<{ segment: string; label: string; icon: LucideIcon }> = [
   { segment: 'table', label: 'Table', icon: Table2 },
   { segment: 'calendar', label: 'Calendar', icon: CalendarDays },
   { segment: 'timeline', label: 'Timeline', icon: GanttChartSquare },
+  { segment: 'scorecard', label: 'Scorecard', icon: Gauge },
   { segment: 'members', label: 'Members', icon: UsersRound },
 ]
 

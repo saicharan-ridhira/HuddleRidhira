@@ -7,6 +7,7 @@ import { PriorityPicker } from '@/components/work/inline/priority-picker'
 import { AssigneePicker } from '@/components/work/inline/assignee-picker'
 import { DueDatePicker } from '@/components/work/inline/due-date-picker'
 import { EmptyState } from './list-view'
+import { Pagination, usePagination } from '@/components/shared/pagination'
 import { useCustomFields } from '@/lib/store/selectors'
 import { useStore } from '@/lib/store/store'
 import { checklistProgress, isBlocked, isDueToday, isOverdue } from '@/lib/engine/derive'
@@ -40,6 +41,11 @@ export function TableView({
     group.items.map((item) => ({ item, groupLabel: config.groupBy === 'none' ? null : group.label })),
   )
 
+  // A table is the one view where a page break is expected rather than
+  // jarring — rows are read linearly and the group is a column, not a
+  // heading you can be interrupted mid-way through.
+  const pagination = usePagination(rows, 50)
+
   if (rows.length === 0) return <EmptyState />
 
   const shows = (field: string) => config.visibleFields.includes(field as never)
@@ -59,7 +65,8 @@ export function TableView({
   const showGroupColumn = config.groupBy !== 'none' && !(duplicateOf && shows(duplicateOf))
 
   return (
-    <div className="min-h-0 flex-1 overflow-auto scrollbar-thin">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="min-h-0 flex-1 overflow-auto scrollbar-thin">
       <Table>
         <TableHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur">
           <TableRow>
@@ -81,7 +88,7 @@ export function TableView({
         </TableHeader>
 
         <TableBody>
-          {rows.map(({ item, groupLabel }) => {
+          {pagination.items.map(({ item, groupLabel }) => {
             const status = ctx.statuses[item.statusId]
             const labels = item.labelIds.map((id) => ctx.labels[id]!).filter(Boolean)
 
@@ -180,6 +187,9 @@ export function TableView({
           })}
         </TableBody>
       </Table>
+      </div>
+
+      <Pagination state={pagination} itemLabel="work items" />
     </div>
   )
 }

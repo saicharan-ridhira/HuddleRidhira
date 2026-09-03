@@ -273,6 +273,7 @@ export function createWorkItem(input: CreateWorkItemInput): Id | null {
       departmentId: input.departmentId,
       assigneeId: input.assigneeId ?? null,
       reporterId: state.session.currentUserId,
+      rockQuarter: null,
       labelIds: input.labelIds ?? [],
       startDate: null,
       dueDate: input.dueDate ?? null,

@@ -34,6 +34,8 @@ function extract(field: FilterField, item: WorkItem, ctx: EngineContext): Extrac
       return { kind: 'scalar', value: isBlocked(item.id, ctx) }
     case 'overdue':
       return { kind: 'scalar', value: isOverdue(item, ctx) }
+    case 'rock':
+      return { kind: 'scalar', value: item.rockQuarter !== null }
     case 'dueDate':
       return { kind: 'scalar', value: item.dueDate }
     case 'title':

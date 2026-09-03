@@ -50,7 +50,7 @@ export function createDepartment(input: DepartmentInput): Id | null {
       ? [...input.memberIds, input.leadId]
       : input.memberIds
 
-    state.entities.departments[id] = { id, slug, ...input, memberIds }
+    state.entities.departments[id] = { id, slug, ...input, memberIds, criticalNumber: null }
     state.order.departmentIds.push(id)
 
     for (const userId of memberIds) {

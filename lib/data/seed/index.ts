@@ -11,6 +11,7 @@ import {
   workflows,
 } from './config'
 import { buildHistorySeed } from './history'
+import { buildCriticalNumbers, buildMetricSeed, metrics } from './metrics'
 import { idsOf, toRecord } from './helpers'
 import { savedViews } from './views'
 import { buildWorkSeed } from './work'
@@ -34,17 +35,28 @@ export interface Seed {
 export function createSeed(now: Date = new Date()): Seed {
   const work = buildWorkSeed(now)
   const history = buildHistorySeed(now)
+  const metricSeed = buildMetricSeed(now)
+
+  // The Critical Number is quarter-relative, so it is stamped onto the
+  // static department records here rather than hardcoded in ./config.
+  const criticalNumbers = buildCriticalNumbers(now)
+  const seededDepartments = departments.map((department) => ({
+    ...department,
+    criticalNumber: criticalNumbers[department.id] ?? null,
+  }))
 
   const entities: Entities = {
     organizations: toRecord(organizations),
     users: toRecord(users),
     roles: toRecord(roles),
-    departments: toRecord(departments),
+    departments: toRecord(seededDepartments),
     workflows: toRecord(workflows),
     statuses: toRecord(statuses),
     labels: toRecord(labels),
     workItemTypes: toRecord(workItemTypes),
     customFields: toRecord(customFields),
+    metrics: toRecord(metrics),
+    metricEntries: toRecord(metricSeed.entries),
     workItems: toRecord(work.workItems),
     checklists: toRecord(work.checklists),
     checklistItems: toRecord(work.checklistItems),
@@ -67,6 +79,8 @@ export function createSeed(now: Date = new Date()): Seed {
     labelIds: idsOf(labels),
     workItemTypeIds: idsOf(workItemTypes),
     customFieldIds: idsOf(customFields),
+    metricIds: idsOf(metrics),
+    metricEntryIds: idsOf(metricSeed.entries),
     workItemIds: idsOf(work.workItems),
     savedViewIds: idsOf(savedViews),
     auditEventIds: [...history.auditEvents]

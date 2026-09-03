@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import type { Department, Id, SavedView, User, ViewConfig, WorkItem } from '@/lib/types'
+import type { Department, Id, Metric, SavedView, User, ViewConfig, WorkItem } from '@/lib/types'
 import { createEngineContext, type EngineContext } from '@/lib/engine/context'
 import { defaultViewConfig } from '@/lib/data/seed'
 import { useStore } from './store'
@@ -130,6 +130,47 @@ export function useCustomFields(departmentId?: Id) {
         .filter(
           (field) =>
             field && (!departmentId || field.departmentIds.length === 0 || field.departmentIds.includes(departmentId)),
+        ),
+    ),
+  )
+}
+
+/**
+ * Metrics a department reports (empty `departmentIds` = every department
+ * reports it), with archived definitions left out.
+ *
+ * The optional-argument short-circuit is what lets the settings page
+ * call this bare to list every definition, while a scorecard passes a
+ * department and gets only its own.
+ */
+export function useMetrics(departmentId?: Id, includeArchived = false): Metric[] {
+  return useStore(
+    useShallow((state) =>
+      (state.order.metricIds ?? [])
+        .map((id) => state.entities.metrics?.[id])
+        .filter(
+          (metric): metric is Metric =>
+            Boolean(metric) &&
+            (includeArchived || !metric!.archived) &&
+            (!departmentId || metric!.departmentIds.length === 0 || metric!.departmentIds.includes(departmentId)),
+        ),
+    ),
+  )
+}
+
+export function useMetric(metricId: Id | null | undefined): Metric | undefined {
+  return useStore((state) => (metricId ? state.entities.metrics?.[metricId] : undefined))
+}
+
+/** The department's Rocks for a quarter, in board order. */
+export function useRocks(departmentId: Id | undefined, quarter: string): WorkItem[] {
+  return useStore(
+    useShallow((state) =>
+      state.order.workItemIds
+        .map((id) => state.entities.workItems[id])
+        .filter(
+          (item): item is WorkItem =>
+            Boolean(item) && item!.rockQuarter === quarter && (!departmentId || item!.departmentId === departmentId),
         ),
     ),
   )
