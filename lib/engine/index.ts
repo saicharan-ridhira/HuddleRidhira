@@ -1,5 +1,7 @@
 export * from './context'
 export * from './derive'
+export * from './periods'
+export * from './metrics'
 export * from './filter'
 export * from './sort'
 export * from './group'

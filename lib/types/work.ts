@@ -163,6 +163,17 @@ export interface WorkItem {
   /** Keyed by CustomField id. */
   customFields: Record<Id, CustomFieldValue>
   checklistId: Id | null
+  /**
+   * The quarter this item is a Rock for, e.g. '2026-Q3'. Null for
+   * ordinary work.
+   *
+   * A Rock is a work item rather than an entity of its own, which is
+   * what makes it inherit an owner, a due date, checklist progress,
+   * blockers and its place in the huddle without any of that being
+   * rebuilt. A quarterly priority *is* work; giving it a parallel home
+   * would only guarantee the two drift apart.
+   */
+  rockQuarter: string | null
   /** Position within its status column on the board. */
   order: number
   createdAt: ISODate

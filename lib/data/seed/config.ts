@@ -225,6 +225,7 @@ export const departments: Department[] = [
     defaultView: 'board',
     memberIds: engineeringMembers,
     leadId: 'u-sai',
+    criticalNumber: null,
   },
   {
     id: 'dept-product',
@@ -237,6 +238,7 @@ export const departments: Department[] = [
     defaultView: 'board',
     memberIds: ['u-aditya', 'u-sneha', 'u-vivek', 'u-tanya', 'u-priya', 'u-sai'],
     leadId: 'u-aditya',
+    criticalNumber: null,
   },
   {
     id: 'dept-marketing',
@@ -249,6 +251,7 @@ export const departments: Department[] = [
     defaultView: 'board',
     memberIds: ['u-rohan', 'u-kavya', 'u-ishaan', 'u-tara', 'u-deepak', 'u-anjali'],
     leadId: 'u-rohan',
+    criticalNumber: null,
   },
   {
     id: 'dept-sales',
@@ -261,6 +264,7 @@ export const departments: Department[] = [
     defaultView: 'list',
     memberIds: ['u-manish', 'u-ritu', 'u-gaurav', 'u-neha', 'u-suresh'],
     leadId: 'u-manish',
+    criticalNumber: null,
   },
 ]
 

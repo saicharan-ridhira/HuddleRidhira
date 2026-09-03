@@ -20,6 +20,7 @@ export type AuditEntityKind =
   | 'label'
   | 'work-item-type'
   | 'custom-field'
+  | 'metric'
   | 'view'
   | 'organization'
 

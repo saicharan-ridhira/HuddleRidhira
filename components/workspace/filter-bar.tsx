@@ -33,10 +33,14 @@ const FIELD_LABEL: Record<FilterField, string> = {
   department: 'Department',
   blocked: 'Blocked',
   overdue: 'Overdue',
+  rock: 'Rock',
   dueDate: 'Due date',
   reporter: 'Reporter',
   title: 'Title',
 }
+
+/** Fields whose value is a real boolean rather than an entity id. */
+const BOOLEAN_FIELDS: readonly FilterField[] = ['blocked', 'overdue', 'rock']
 
 const OPERATOR_LABEL: Record<FilterOperator, string> = {
   is: 'is',
@@ -447,6 +451,7 @@ function ConditionEditor({
         return PRIORITIES.map((entry) => ({ value: entry, label: PRIORITY_LABEL[entry] }))
       case 'blocked':
       case 'overdue':
+      case 'rock':
         return [
           { value: 'true', label: 'Yes' },
           { value: 'false', label: 'No' },
@@ -498,7 +503,7 @@ function ConditionEditor({
           onValueChange={(value) =>
             onChange({
               ...condition,
-              value: condition.field === 'blocked' || condition.field === 'overdue' ? value === 'true' : value,
+              value: BOOLEAN_FIELDS.includes(condition.field) ? value === 'true' : value,
             })
           }
         >

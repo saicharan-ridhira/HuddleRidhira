@@ -67,16 +67,58 @@ export type Store = StoreState & StoreActions
 
 const emptyEntities = (): Entities => ({
   organizations: {}, users: {}, roles: {}, departments: {}, workflows: {}, statuses: {},
-  labels: {}, workItemTypes: {}, customFields: {}, workItems: {}, checklists: {},
+  labels: {}, workItemTypes: {}, customFields: {}, metrics: {}, metricEntries: {},
+  workItems: {}, checklists: {},
   checklistItems: {}, dependencies: {}, blockers: {}, comments: {}, savedViews: {},
   huddles: {}, huddleDiscussions: {}, huddleActions: {}, auditEvents: {},
 })
 
 const emptyOrder = (): EntityOrder => ({
   organizationIds: [], userIds: [], roleIds: [], departmentIds: [], workflowIds: [],
-  labelIds: [], workItemTypeIds: [], customFieldIds: [], workItemIds: [],
+  labelIds: [], workItemTypeIds: [], customFieldIds: [], metricIds: [], metricEntryIds: [],
+  workItemIds: [],
   savedViewIds: [], auditEventIds: [], huddleIds: [],
 })
+
+/**
+ * Brings a browser holding an older persisted blob up to the current
+ * shape.
+ *
+ * Without this, anyone who has already used the app rehydrates with
+ * `entities.metrics` undefined and crashes on the first selector that
+ * maps over it — a failure that would hit every existing user at once,
+ * on load, with their data still in localStorage and no way back.
+ *
+ * Metric *definitions* and their seeded history are installed wholesale,
+ * because there is nothing in an older blob to preserve; work items and
+ * huddles are left exactly as they are and only gain their new fields.
+ */
+function migratePersisted(persisted: unknown, version: number): unknown {
+  if (version >= 2 || !persisted || typeof persisted !== 'object') return persisted
+
+  const state = persisted as { entities?: Partial<Entities>; order?: Partial<EntityOrder> }
+  const entities = state.entities
+  const order = state.order
+  if (!entities || !order) return persisted
+
+  if (!entities.metrics) {
+    const seed = createSeed(new Date())
+    entities.metrics = seed.entities.metrics
+    entities.metricEntries = seed.entities.metricEntries
+    order.metricIds = seed.order.metricIds
+    order.metricEntryIds = seed.order.metricEntryIds
+
+    for (const [id, department] of Object.entries(entities.departments ?? {})) {
+      department.criticalNumber ??= seed.entities.departments[id]?.criticalNumber ?? null
+    }
+  }
+
+  for (const item of Object.values(entities.workItems ?? {})) {
+    item.rockQuarter ??= null
+  }
+
+  return persisted
+}
 
 /**
  * Deliberately empty at module scope. Seeding uses `new Date()`, which
@@ -163,8 +205,9 @@ export const useStore = create<Store>()(
     })),
     {
       name: 'huddle-prototype',
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => localStorage),
+      migrate: migratePersisted,
       skipHydration: true,
       partialize: ({ entities, order, session, workingViews, activeHuddleId }) => ({
         entities,

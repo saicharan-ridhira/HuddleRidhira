@@ -12,6 +12,8 @@ import type {
   HuddleDiscussion,
   Id,
   Label,
+  Metric,
+  MetricEntry,
   Organization,
   Role,
   SavedView,
@@ -22,6 +24,8 @@ import type {
   Workflow,
 } from '@/lib/types'
 import { INVERSE_RELATION } from '@/lib/types'
+// Type-only in the other direction, so this pair does not cycle at runtime.
+import { buildMetricIndex, type MetricIndex } from './metrics'
 
 /**
  * Normalized entity tables. Everything the app knows lives here as
@@ -42,6 +46,8 @@ export interface Entities {
   labels: Record<Id, Label>
   workItemTypes: Record<Id, WorkItemType>
   customFields: Record<Id, CustomField>
+  metrics: Record<Id, Metric>
+  metricEntries: Record<Id, MetricEntry>
   workItems: Record<Id, WorkItem>
   checklists: Record<Id, Checklist>
   checklistItems: Record<Id, ChecklistItem>
@@ -64,6 +70,8 @@ export interface EntityOrder {
   labelIds: Id[]
   workItemTypeIds: Id[]
   customFieldIds: Id[]
+  metricIds: Id[]
+  metricEntryIds: Id[]
   workItemIds: Id[]
   savedViewIds: Id[]
   /** Newest first — the audit log reads top-down. */
@@ -134,6 +142,7 @@ export function buildBlockerIndex(blockers: Record<Id, Blocker>): BlockerIndex {
 export interface EngineContext extends Entities {
   dependencyIndex: DependencyIndex
   blockerIndex: BlockerIndex
+  metricIndex: MetricIndex
   /** Injected so overdue calculations are deterministic in tests. */
   now: Date
 }
@@ -143,6 +152,7 @@ export function createEngineContext(entities: Entities, now: Date = new Date()):
     ...entities,
     dependencyIndex: buildDependencyIndex(entities.dependencies),
     blockerIndex: buildBlockerIndex(entities.blockers),
+    metricIndex: buildMetricIndex(entities.metricEntries),
     now,
   }
 }

@@ -30,7 +30,7 @@ Any credentials sign you in as Sai Charan. There is no server — see [Prototype
 
 ## The demo script
 
-Fifteen steps, about five minutes. This is the flow the prototype is built to make convincing.
+Twenty steps, about eight minutes. This is the flow the prototype is built to make convincing.
 
 **Setup.** Open `/login`, sign in. You land on the dashboard as Sai Charan, Engineering Lead at Acme Corp.
 
@@ -43,20 +43,28 @@ Fifteen steps, about five minutes. This is the flow the prototype is built to ma
 7. **The toolbar is five controls**: `Filter · Group · Sort · View · ⋯`. Filter → Blocked. Group → Assignee. Then Filter → Clear. *Advanced filter…* builds `(A AND B) OR C` — the simple picker and the builder write into the same tree.
 8. **Switch views.** Board → List → Table → Calendar → Timeline. Your filter, grouping and sort survive the move. On Timeline, follow the red arrows down the payment chain: ENG-120 → ENG-124 → ENG-131 → ENG-140.
 
+**The scorecard.** Every department measures different things, which is why the platform measures none of them itself.
+
+9. **Sidebar → Sales → Scorecard.** The Critical Number for the quarter, this quarter's Rocks, then the grid: rows are metrics, columns are days. Sales counts leads and deals; switch to **Marketing** and the same screen is spend, MQLs and cost per lead. Nothing about either department is in the code — a metric is a record, defined in Settings → Metrics & KPIs.
+10. **Type into today's cell.** Click a `New leads` cell, type a number, press Enter — it moves *down*, the way a spreadsheet does. Watch `Lead → won %` recompute in the same frame: it is a ratio of two other metrics, derived on read, so it can never drift from the counts it is made of.
+11. **Paste a block from Excel.** Select a range in a spreadsheet and paste it into the grid — it fills down and right from the focused cell. This is the migration path, and the reason anyone would leave the sheet.
+12. **Note the empty cells.** A blank renders as `—`, never `0`. "Nobody reported" and "it was nothing" are different facts, and a scorecard that confuses them stops being believed in its second week.
+13. **Settings → Metrics & KPIs.** Add the **Marketing** library to a department in one click — six metrics arrive, including *Cost per lead* already wired to Spend ÷ MQLs. A blank "create a metric" form is a wall; the hard part was never the tool.
+
 **The huddle.** It lives in the sidebar, not inside a department — there is one, and it is between heads of department.
 
-9. **Huddle → Start the leadership huddle.** Attendance lists all four departments, each with its head. Click **Sales** to mark it absent — 3 / 4. Start.
-10. **Engineering is reviewed first, spoken for by Sai.** The agenda is one ranked list: **every blocker**, then the **top three backlog items**. Blockers are never capped — there are few and each is a real problem. Backlog is, because Engineering carries twenty-six untouched items and reading them all out would bury the three that matter. Click *Show 20 more backlog items*, then *Show fewer*.
-11. **Each row says why it is there.** Blocked · Not started · Holding up work · Overdue. Note that *overdue alone does not put an item on the agenda* — a late in-progress item is something the head already knows about; an untouched backlog item is exactly what never gets raised unless a meeting raises it.
-12. **Capture the discussion.** On `ENG-124`, fill in *Why is it stuck?* and *Decision*, then add an action — "Follow up with Finance at 2pm", owner Sai, due Today.
-13. **The moment.** In the discussion panel's Dependencies section, click **ENG-120**. In the drawer that opens, set its status to **Done**. Close the drawer.
+14. **Huddle → Start the leadership huddle.** Attendance lists all four departments, each with its head. Click **Sales** to mark it absent — 3 / 4. Start.
+15. **Engineering is reviewed first, spoken for by Sai.** The agenda is one ranked list: **every blocker**, then the **top three backlog items**. Blockers are never capped — there are few and each is a real problem. Backlog is, because Engineering carries twenty-six untouched items and reading them all out would bury the three that matter. Click *Show 20 more backlog items*, then *Show fewer*.
+16. **Each row says why it is there.** Blocked · Not started · Holding up work · Overdue. Note that *overdue alone does not put an item on the agenda* — a late in-progress item is something the head already knows about; an untouched backlog item is exactly what never gets raised unless a meeting raises it.
+17. **Capture the discussion.** On `ENG-124`, fill in *Why is it stuck?* and *Decision*, then add an action — "Follow up with Finance at 2pm", owner Sai, due Today.
+18. **The moment.** In the discussion panel's Dependencies section, click **ENG-120**. In the drawer that opens, set its status to **Done**. Close the drawer.
 
     ENG-124 flips to **Unblocked** in place. The dependency panel re-labels itself "Was waiting for". Engineering's blocker count drops. Nothing was refreshed and no flag was set anywhere — `isBlocked` is derived, so the whole product re-reads the same truth.
 
-14. **Next → Product.** Aditya's turn. Note `PRD-30 Usage-based billing spec` is blocked by **ENG-120** — the same item Engineering just resolved. Cross-department waiting is the single most useful thing a leadership meeting surfaces. Keep clicking Next to reach **Finish**.
-15. **The summary** leads with actions grouped by owner, then decisions, then every item changed during the huddle. **Complete huddle** returns you to the dashboard — where all of it already is. Nothing was transcribed.
+19. **Next → Product.** Aditya's turn. Note `PRD-30 Usage-based billing spec` is blocked by **ENG-120** — the same item Engineering just resolved. Cross-department waiting is the single most useful thing a leadership meeting surfaces. Keep clicking Next to reach **Finish**.
+20. **The summary** leads with actions grouped by owner, then decisions, then every item changed during the huddle. **Complete huddle** returns you to the dashboard — where all of it already is. Nothing was transcribed.
 
-**Afterwards.** Settings → Audit logs shows every change from steps 6–14. Refresh the page: it all survives.
+**Afterwards.** Settings → Audit logs shows every change from steps 6–19 — including who changed which day's number, and what it was before. Refresh the page: it all survives.
 
 **The CRUD round-trip**, worth showing separately:
 
@@ -118,7 +126,29 @@ Board, List, Table, Calendar, Timeline and the Huddle all consume this. Only the
 
 Filters are a tree, so `(Status = Doing AND Priority = High) OR Blocked = true` is expressible; the simple picker writes a flat AND group into the same structure, so there is one evaluator and the two can never disagree.
 
-### 4. Visual consistency is structural
+### 4. A metric is data, not code
+
+Every department here tracked its numbers in its own spreadsheet, because sales, marketing and engineering measure genuinely different things — which is exactly why any fixed set of columns is wrong for three departments out of four.
+
+So a KPI gets the same treatment statuses, labels and custom fields already get: a `Metric` is a department-scoped *definition* (unit, cadence, direction, target, owner) and a `MetricEntry` is a value at `(metric, department, period)`. The platform never learns what a conversion is.
+
+```
+metric definitions  ->  the spreadsheet's rows
+periods             ->  its columns
+entries             ->  its cells
+```
+
+Three things follow that a spreadsheet cannot do:
+
+- **`direction` decides everything.** "Incidents, target 0, lower is better" and "Deploys, target 3, higher is better" resolve through one function, so no component branches on what a metric means.
+- **Computed metrics are derived on read.** A conversion rate is `ratio(won, leads)` — never stored, so it cannot drift from the counts it is made of. Presets (ratio, sum, difference) rather than a formula language: typed, safe, nothing to parse, and enough for what an operating scorecard actually needs.
+- **Every edit is audited**, because entries are written through the same `apply` primitive as everything else. "Who changed last month's figure, and what was it before" has an answer.
+
+An empty cell is `not-reported`, never zero, and never red. Reporting a genuine nought and forgetting to report are different facts, and conflating them is how a scorecard loses trust.
+
+Cadence is per metric, so `lib/engine/periods.ts` owns period arithmetic and nothing else may construct a `periodStart` — that one rule is what stops a weekly metric collecting seven entries in a week.
+
+### 5. Visual consistency is structural
 
 No component renders a status, priority, label or blocked state with its own markup. They all come from `components/primitives/`. `<BlockedBadge>` is the *only* way anything draws "blocked", so the board, list, table, timeline, huddle, dashboard and command palette cannot drift apart.
 
@@ -148,18 +178,20 @@ app/
   (auth)/login/
   (app)/
     dashboard/  my-work/  blocked/  calendar/  reports/  audit-logs/
-    departments/[departmentId]/{overview,board,list,table,calendar,timeline,huddle,members}/
+    huddle/  huddle/history/
+    departments/[departmentId]/{overview,board,list,table,calendar,timeline,scorecard,members}/
     settings/{organization,departments,members,roles,workflows,labels,
-              work-item-types,custom-fields,views,huddles,audit-logs}/
+              work-item-types,custom-fields,metrics,views,huddles,audit-logs}/
 lib/
-  types/      22 entities
-  engine/     filter · sort · group · derive · pipeline   (pure, unit-tested)
+  types/      24 entities
+  engine/     filter · sort · group · derive · periods · metrics · pipeline   (pure, unit-tested)
   services/   the mutation API the UI calls
   store/      zustand + immer + persist, and selectors
-  data/seed/  the demo dataset
+  data/seed/  the demo dataset, and the metric template library
 components/
   primitives/  the shared visual language
-  layout/  workspace/  work/  views/  huddle/  settings/  ui/
+  shared/      pagination
+  layout/  workspace/  work/  views/  huddle/  metrics/  settings/  ui/
 ```
 
 ---
@@ -183,6 +215,8 @@ Four departments on four genuinely different workflows, each with a head: Sai (E
 
 Every department carries at least one genuine blocker and a real backlog, because a leadership huddle where three of four heads have nothing to say is a seeding accident rather than a product statement — a test asserts it. Several blockers are deliberately **cross-departmental**: `PRD-30` and `SLS-190` wait on Engineering, which is what makes the meeting worth holding. The payments chain `ENG-120 → ENG-124 → ENG-131 → ENG-140` is what step 13 unwinds.
 
+Each department also carries a scorecard: around six metrics apiece with sixty days of daily history, plus a Critical Number and three Rocks for the current quarter. Product's interview count is deliberately left unreported for today, so the huddle demo has a department visibly behind on its numbers. Computed metrics are never seeded — a ratio is derived on read, and storing one would be the exact drift the design exists to prevent.
+
 > A note on keys: the PRD writes the payments work as both `ENG-124` (§13's card) and `PAY-124` (§23's chain). Keys here are prefixed per department, so it is `ENG-124` throughout — same item, one prefix.
 
 ---
@@ -198,6 +232,11 @@ Every department carries at least one genuine blocker and a real backlog, becaus
 - nested `(A AND B) OR C` evaluation
 - multi-level sort, including undated work staying last in *both* directions
 - group bucketing: empty board columns kept, empty list groups dropped
+- period canonicalisation across cadences, including the Sunday that belongs to the week before and the quarter boundary
+- `metricHealth` symmetry under `direction`: target 0 / lower-is-better reads green at 0 and red at 3
+- that an unreported period is `not-reported` and a reported 0 is not
+- computed metrics: a ratio resolving, a zero denominator returning nothing rather than infinity, a partial sum refusing rather than under-reporting
+- a metric that depends on itself — directly or through another metric — returning null instead of hanging
 - the ranking rules: a backlog item qualifies for discussion; an overdue in-progress item does not qualify on its own; a blocker outranks any backlog item; no modifier can lift an item into the tier above
 - that `backlog` never reaches a board card's badges
 - that the backlog cap holds while blockers are never capped

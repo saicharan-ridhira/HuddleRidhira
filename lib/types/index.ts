@@ -1,6 +1,7 @@
 export * from './primitives'
 export * from './org'
 export * from './work'
+export * from './metrics'
 export * from './view'
 export * from './huddle'
 export * from './audit'

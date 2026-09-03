@@ -13,6 +13,7 @@ import { AssigneePicker } from './inline/assignee-picker'
 import { DueDatePicker } from './inline/due-date-picker'
 import { LabelPicker } from './inline/label-picker'
 import { Checklist } from './checklist'
+import { RockToggle } from './rock-toggle'
 import { DependencyPanel } from './dependency-panel'
 import { BlockerList } from './blocker-list'
 import { CustomFieldEditor } from './custom-fields'
@@ -178,6 +179,9 @@ function DrawerBody({ itemId }: { itemId: string }) {
         </Section>
 
         <Section title="Classification">
+          <Row label="Rock">
+            <RockToggle item={item} ctx={ctx} />
+          </Row>
           <Row label="Type">
             <span className="inline-flex items-center gap-1.5 px-1 text-[13px]">
               <TypeIcon type={type} />
