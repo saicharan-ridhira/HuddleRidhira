@@ -2,17 +2,16 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, Plus, Trash2 } from 'lucide-react'
+import { ArrowRight, Crown, Plus, Trash2 } from 'lucide-react'
 import { SettingsPage } from '@/components/settings/settings-page'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { EntityDialog, Field as DialogField } from '@/components/settings/entity-dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { DynamicIcon, UserAvatar } from '@/components/primitives'
 import { EditableText } from '@/components/work/inline/editable-text'
-import { useAllWorkItems, useDepartments, useEngineContext, useWorkflows } from '@/lib/store/selectors'
+import { useAllWorkItems, useDepartments, useEngineContext, useUsers, useWorkflows } from '@/lib/store/selectors'
 import { configService } from '@/lib/services'
 import { HUES, type Hue, type ViewLayout } from '@/lib/types'
 import { hueStyle } from '@/lib/ui/tokens'
@@ -27,14 +26,18 @@ export default function DepartmentsSettingsPage() {
   const workflows = useWorkflows()
   const items = useAllWorkItems()
   const ctx = useEngineContext()
+  const users = useUsers()
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
+  // A department with no head cannot take part in the huddle, so the
+  // create form asks for one rather than leaving it blank and letting
+  // the department quietly vanish from the roster.
+  const [leadId, setLeadId] = useState('')
 
   const create = () => {
     const trimmed = name.trim()
-    if (!trimmed) return
     const workflow = workflows[0]
-    if (!workflow) return
+    if (!trimmed || !workflow || !leadId) return
 
     configService.createDepartment({
       name: trimmed,
@@ -44,10 +47,10 @@ export default function DepartmentsSettingsPage() {
       workflowId: workflow.id,
       defaultView: 'board',
       memberIds: [],
-      leadId: '',
-      huddle: { cadence: 'daily', time: '09:30', groupBy: 'assignee', discussionLimit: 3 },
+      leadId,
     })
     setName('')
+    setLeadId('')
     setCreating(false)
     toast.success(`${trimmed} created`)
   }
@@ -198,47 +201,117 @@ export default function DepartmentsSettingsPage() {
               </Field>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-muted-foreground">Members</span>
-              <div className="flex items-center -space-x-1.5">
-                {department.memberIds.slice(0, 8).map((id) => (
-                  <UserAvatar key={id} user={ctx.users[id]} size="sm" className="ring-2 ring-background" />
-                ))}
-              </div>
-              <span className="text-[11px] text-muted-foreground">{department.memberIds.length}</span>
-              {lead && <span className="ml-auto text-[11px] text-muted-foreground">Lead: {lead.name}</span>}
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,240px)_1fr]">
+              <Field label="Head of department">
+                <Select
+                  value={department.leadId || 'none'}
+                  onValueChange={(value) => {
+                    if (value === 'none') return
+                    configService.setDepartmentLead(department.id, value)
+                    toast.success(`${ctx.users[value]?.name ?? 'They'} now heads ${department.name}`)
+                  }}
+                >
+                  <SelectTrigger size="sm" className="w-full">
+                    <SelectValue placeholder="Nobody assigned" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {!department.leadId && (
+                      <SelectItem value="none" disabled>
+                        Nobody assigned
+                      </SelectItem>
+                    )}
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        <span className="flex items-center gap-2">
+                          <UserAvatar user={user} size="xs" />
+                          {user.name}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {!lead && (
+                  <span className="text-[10px] font-medium text-overdue">
+                    Cannot take part in the huddle without one
+                  </span>
+                )}
+              </Field>
+
+              <Field label={`Members (${department.memberIds.length})`}>
+                <div className="flex flex-wrap gap-1">
+                  {users.map((user) => {
+                    const isMember = department.memberIds.includes(user.id)
+                    const isHead = department.leadId === user.id
+                    return (
+                      <button
+                        key={user.id}
+                        type="button"
+                        disabled={isHead}
+                        title={isHead ? 'The head is always a member' : undefined}
+                        onClick={() =>
+                          configService.setDepartmentMembers(
+                            department.id,
+                            isMember
+                              ? department.memberIds.filter((id) => id !== user.id)
+                              : [...department.memberIds, user.id],
+                          )
+                        }
+                        className={
+                          isMember
+                            ? 'inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary disabled:opacity-60'
+                            : 'inline-flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-accent'
+                        }
+                      >
+                        <UserAvatar user={user} size="xs" />
+                        {user.name.split(' ')[0]}
+                        {isHead && <Crown className="size-2.5 text-overdue" />}
+                      </button>
+                    )
+                  })}
+                </div>
+              </Field>
             </div>
           </section>
         )
       })}
 
-      <Dialog open={creating} onOpenChange={setCreating}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>New department</DialogTitle>
-            <DialogDescription>You can set its workflow, members and huddle rules afterwards.</DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="dept-name">Name</Label>
-            <Input
-              id="dept-name"
-              autoFocus
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              onKeyDown={(event) => event.key === 'Enter' && create()}
-              placeholder="Customer Success"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setCreating(false)}>
-              Cancel
-            </Button>
-            <Button onClick={create} disabled={!name.trim()}>
-              Create
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <EntityDialog
+        open={creating}
+        onOpenChange={setCreating}
+        title="New department"
+        description="Workflow, members and colour can be changed afterwards. A head is required — without one the department cannot take part in the huddle."
+        submitLabel="Create department"
+        canSubmit={Boolean(name.trim() && leadId)}
+        onSubmit={create}
+      >
+        <DialogField label="Name" htmlFor="dept-name">
+          <Input
+            id="dept-name"
+            autoFocus
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="Customer Success"
+          />
+        </DialogField>
+
+        <DialogField label="Head of department">
+          <Select value={leadId} onValueChange={setLeadId}>
+            <SelectTrigger size="sm" className="w-full">
+              <SelectValue placeholder="Choose a head" />
+            </SelectTrigger>
+            <SelectContent>
+              {users.map((user) => (
+                <SelectItem key={user.id} value={user.id}>
+                  <span className="flex items-center gap-2">
+                    <UserAvatar user={user} size="xs" />
+                    {user.name}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </DialogField>
+      </EntityDialog>
     </SettingsPage>
   )
 }

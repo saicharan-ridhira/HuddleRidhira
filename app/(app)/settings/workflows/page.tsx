@@ -63,7 +63,37 @@ export default function WorkflowsSettingsPage() {
         const statuses = workflow.statusIds.map((id) => ctx.statuses[id]!).filter(Boolean)
 
         return (
-          <SettingsSection key={workflow.id} title={workflow.name} description={workflow.description}>
+          <SettingsSection key={workflow.id}>
+            <div className="flex items-start gap-2">
+              <div className="flex min-w-0 flex-1 flex-col">
+                <EditableText
+                  value={workflow.name}
+                  onCommit={(next) => configService.updateWorkflow(workflow.id, { name: next })}
+                  className="-ml-1 text-[13px] font-semibold"
+                />
+                <EditableText
+                  value={workflow.description}
+                  onCommit={(next) => configService.updateWorkflow(workflow.id, { description: next })}
+                  placeholder="Add a description"
+                  className="-ml-1 text-[12px] text-muted-foreground"
+                />
+              </div>
+
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                className="mt-1 text-muted-foreground hover:text-destructive"
+                onClick={() => {
+                  const result = configService.deleteWorkflow(workflow.id)
+                  if (result.ok) toast.success(`Deleted ${workflow.name}`)
+                  else toast.error(result.reason ?? 'Could not delete that workflow.')
+                }}
+                aria-label={`Delete ${workflow.name}`}
+              >
+                <Trash2 />
+              </Button>
+            </div>
+
             <div className="flex flex-wrap items-center gap-1.5">
               {usedBy.length > 0 ? (
                 usedBy.map((department) => (

@@ -8,7 +8,6 @@ import {
   KanbanSquare,
   LayoutList,
   Table2,
-  Users,
   LayoutDashboard,
   UsersRound,
   type LucideIcon,
@@ -19,6 +18,10 @@ import { cn } from '@/lib/utils'
  * PRD §6 and §16. One proximity group: every way of looking at the same
  * work sits together, so switching is a single decision rather than a
  * hunt across the chrome.
+ *
+ * The huddle is not among them: it is one organization-wide meeting
+ * between heads of department, not a way of looking at one department's
+ * work, so it lives in the primary navigation instead.
  */
 const VIEWS: Array<{ segment: string; label: string; icon: LucideIcon }> = [
   { segment: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -27,7 +30,6 @@ const VIEWS: Array<{ segment: string; label: string; icon: LucideIcon }> = [
   { segment: 'table', label: 'Table', icon: Table2 },
   { segment: 'calendar', label: 'Calendar', icon: CalendarDays },
   { segment: 'timeline', label: 'Timeline', icon: GanttChartSquare },
-  { segment: 'huddle', label: 'Huddle', icon: Users },
   { segment: 'members', label: 'Members', icon: UsersRound },
 ]
 

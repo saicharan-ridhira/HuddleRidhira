@@ -2,58 +2,63 @@
 
 import { ChevronLeft, ChevronRight, CircleCheckBig, Radio } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { UserAvatar } from '@/components/primitives'
+import { DynamicIcon, UserAvatar } from '@/components/primitives'
 import { huddleService } from '@/lib/services'
 import type { EngineContext } from '@/lib/engine/context'
-import type { Department, Huddle } from '@/lib/types'
+import type { Huddle } from '@/lib/types'
+import { hueStyle } from '@/lib/ui/tokens'
 import { cn } from '@/lib/utils'
 
-export function HuddleHeader({
-  huddle,
-  department,
-  ctx,
-}: {
-  huddle: Huddle
-  department: Department
-  ctx: EngineContext
-}) {
+/**
+ * The roster doubles as a progress bar: which departments are done, and
+ * which one the room is on. Each chip is a department, badged with the
+ * head who is speaking for it.
+ */
+export function HuddleHeader({ huddle, ctx }: { huddle: Huddle; ctx: EngineContext }) {
   const present = huddle.participants.filter((entry) => entry.attendance === 'present').length
   const total = huddle.participants.length
+  const isLast = huddle.currentIndex >= huddle.reviewOrder.length - 1
 
   return (
     <header className="flex shrink-0 items-center gap-3 border-b border-border px-3 py-2">
-      <span className="flex items-center gap-1.5 text-[13px] font-semibold">
+      <span className="flex shrink-0 items-center gap-1.5 text-[13px] font-semibold">
         <Radio className="size-3.5 text-blocked" />
-        {department.name} Huddle
+        Leadership Huddle
       </span>
 
-      <span className="text-[12px] tabular-nums text-muted-foreground">
+      <span className="shrink-0 text-[12px] tabular-nums text-muted-foreground">
         {present}/{total} present
       </span>
 
-      {/* The roster doubles as a progress bar: who is done, who is next. */}
       <ol className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto no-scrollbar">
-        {huddle.reviewOrder.map((userId, index) => {
-          const user = ctx.users[userId]
+        {huddle.reviewOrder.map((departmentId, index) => {
+          const department = ctx.departments[departmentId]
+          const participant = huddle.participants.find((entry) => entry.departmentId === departmentId)
+          const head = participant ? ctx.users[participant.userId] : undefined
           const active = index === huddle.currentIndex
-          const reviewed = huddle.participants.find((entry) => entry.userId === userId)?.reviewedAt
+          const reviewed = participant?.reviewedAt
+
+          if (!department) return null
 
           return (
-            <li key={userId}>
+            <li key={departmentId}>
               <button
                 type="button"
-                onClick={() => huddleService.goToPerson(huddle.id, index)}
+                onClick={() => huddleService.goToDepartment(huddle.id, index)}
                 aria-current={active ? 'step' : undefined}
                 className={cn(
-                  'flex items-center gap-1.5 rounded-md px-1.5 py-1 transition-colors',
+                  'flex items-center gap-1.5 rounded-md px-1.5 py-1 whitespace-nowrap transition-colors',
                   'focus-visible:ring-2 focus-visible:ring-ring/40 outline-none',
                   active ? 'bg-accent' : 'hover:bg-accent/50',
                   !active && reviewed && 'opacity-50',
                 )}
-                title={user?.name}
+                title={`${department.name} — ${head?.name ?? 'no head'}`}
               >
-                <UserAvatar user={user} size="xs" />
-                {active && <span className="text-[12px] font-medium">{user?.name}</span>}
+                <span style={hueStyle(department.hue)} className="text-[var(--chip-fg)]">
+                  <DynamicIcon name={department.icon} />
+                </span>
+                {active && <span className="text-[12px] font-medium">{department.name}</span>}
+                <UserAvatar user={head} size="xs" />
               </button>
             </li>
           )
@@ -64,15 +69,15 @@ export function HuddleHeader({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => huddleService.previousPerson(huddle.id)}
+          onClick={() => huddleService.previousDepartment(huddle.id)}
           disabled={huddle.currentIndex === 0}
         >
           <ChevronLeft />
           <span className="hidden sm:inline">Previous</span>
         </Button>
 
-        <Button size="sm" onClick={() => huddleService.nextPerson(huddle.id)}>
-          {huddle.currentIndex >= huddle.reviewOrder.length - 1 ? (
+        <Button size="sm" onClick={() => huddleService.nextDepartment(huddle.id)}>
+          {isLast ? (
             <>
               Finish
               <CircleCheckBig />

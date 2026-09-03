@@ -103,7 +103,7 @@ export default function BlockedPage() {
                       {details.map((detail, index) => (
                         <li key={index} className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
                           <OctagonAlert className="size-3 shrink-0 text-blocked" />
-                          Waiting for {detail.reason}
+                          {detail.label}
                           {detail.workItemId && (
                             <button
                               type="button"

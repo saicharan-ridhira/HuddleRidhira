@@ -6,6 +6,8 @@ import { SettingsPage } from '@/components/settings/settings-page'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { DynamicIcon, UserAvatar } from '@/components/primitives'
+import { EditableText } from '@/components/work/inline/editable-text'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useEngineContext, useSavedViews } from '@/lib/store/selectors'
 import { viewService } from '@/lib/services'
 import { countConditions } from '@/lib/engine/filter'
@@ -53,10 +55,26 @@ export default function ViewsSettingsPage() {
             <article key={view.id} className="group flex flex-col gap-2 rounded-lg border border-border p-3">
               <div className="flex items-center gap-2">
                 <DynamicIcon name={view.icon} className="text-muted-foreground" />
-                <span className="text-[13px] font-medium">{view.name}</span>
-                <Badge variant="outline" className="capitalize">
-                  {view.scope}
-                </Badge>
+                <EditableText
+                  value={view.name}
+                  onCommit={(next) => viewService.updateSavedView(view.id, { name: next })}
+                  className="text-[13px] font-medium"
+                />
+                <Select
+                  value={view.scope}
+                  onValueChange={(value) =>
+                    viewService.updateSavedView(view.id, { scope: value as typeof view.scope })
+                  }
+                >
+                  <SelectTrigger size="sm" className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="personal">Personal</SelectItem>
+                    <SelectItem value="department">Department</SelectItem>
+                    <SelectItem value="organization">Organization</SelectItem>
+                  </SelectContent>
+                </Select>
                 {department ? <Badge variant="muted">{department.name}</Badge> : <Badge variant="muted">All departments</Badge>}
 
                 <div className="ml-auto flex items-center gap-1">
@@ -83,7 +101,12 @@ export default function ViewsSettingsPage() {
                 </div>
               </div>
 
-              {view.description && <p className="text-[12px] text-muted-foreground">{view.description}</p>}
+              <EditableText
+                value={view.description ?? ''}
+                onCommit={(next) => viewService.updateSavedView(view.id, { description: next })}
+                placeholder="Add a description"
+                className="-ml-1 text-[12px] text-muted-foreground"
+              />
 
               <dl className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-4">
                 <Spec label="Layout" value={view.config.layout} />

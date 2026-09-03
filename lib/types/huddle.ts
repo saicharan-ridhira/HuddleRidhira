@@ -1,19 +1,29 @@
 import type { Id, ISODate } from './primitives'
 
 /**
- * PRD §26–§34. A huddle is a temporary operating mode over a
- * department's existing work — not a second place where work lives.
- * Everything decided here writes back to the work items themselves,
- * which is the product's north star.
+ * A huddle is a temporary operating mode over the organization's
+ * existing work — not a second place where work lives. Everything
+ * decided here writes back to the work items themselves, which is the
+ * product's north star.
+ *
+ * The meeting is between **heads of department**. Note that it reviews
+ * *departments*, each represented by its head, rather than reviewing
+ * people who happen to be heads — so `reviewOrder` holds department
+ * ids. That distinction survives an HOD changing mid-quarter: the
+ * department is still the unit of review, and past huddles still record
+ * who spoke for it at the time.
  */
 export type HuddleStage = 'setup' | 'attendance' | 'running' | 'summary' | 'complete'
 
 export type AttendanceState = 'present' | 'absent' | 'excused'
 
 export interface HuddleParticipant {
+  /** The unit being represented. */
+  departmentId: Id
+  /** Who spoke for it — the department's head at the time of the huddle. */
   userId: Id
   attendance: AttendanceState
-  /** Set when the facilitator moves past this person. */
+  /** Set when the facilitator moves past this department. */
   reviewedAt: ISODate | null
 }
 
@@ -22,8 +32,8 @@ export interface HuddleDiscussion {
   id: Id
   huddleId: Id
   workItemId: Id
-  /** Who the item was being discussed under. */
-  subjectUserId: Id | null
+  /** Which department's review the item came up in. */
+  subjectDepartmentId: Id | null
   why: string
   decision: string
   createdAt: ISODate
@@ -45,8 +55,8 @@ export interface HuddleAction {
 
 export interface Huddle {
   id: Id
-  departmentId: Id
-  /** e.g. "Engineering Huddle — 3 Sep" */
+  organizationId: Id
+  /** e.g. "Leadership Huddle — 3 Sep" */
   title: string
   stage: HuddleStage
   scheduledFor: ISODate
@@ -54,9 +64,17 @@ export interface Huddle {
   endedAt: ISODate | null
   facilitatorId: Id
   participants: HuddleParticipant[]
-  /** Order in which people are reviewed; index into this drives navigation. */
+  /**
+   * Department ids, in review order; `currentIndex` points into this.
+   * Only departments whose head is present are included.
+   */
   reviewOrder: Id[]
   currentIndex: number
+  /**
+   * Departments left out because they have no head assigned. Recorded so
+   * the huddle can say so out loud rather than silently omitting them.
+   */
+  skippedDepartmentIds: Id[]
   discussionIds: Id[]
   actionIds: Id[]
   /** Work item ids touched during this huddle — drives the summary count. */
@@ -68,8 +86,8 @@ export interface HuddleSummaryStats {
   present: number
   total: number
   blockers: number
+  backlog: number
   dependencies: number
-  overdue: number
   itemsUpdated: number
   actionsCreated: number
   durationMinutes: number | null

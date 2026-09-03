@@ -400,6 +400,29 @@ export function renameChecklistItem(entryId: Id, text: string) {
  * Comments
  * ------------------------------------------------------------------ */
 
+export function updateComment(commentId: Id, body: string) {
+  apply((state) => {
+    const comment = state.entities.comments[commentId]
+    if (!comment || !body.trim()) return
+    // A comment is a record of what someone said; only they may rewrite it.
+    if (comment.authorId !== state.session.currentUserId) return
+    comment.body = body.trim()
+    const item = state.entities.workItems[comment.workItemId]
+    return { kind: 'comment', entityId: comment.workItemId, summary: `edited a comment on ${item?.key ?? 'an item'}`, departmentId: item?.departmentId ?? null }
+  })
+}
+
+export function deleteComment(commentId: Id) {
+  apply((state) => {
+    const comment = state.entities.comments[commentId]
+    if (!comment) return
+    if (comment.authorId !== state.session.currentUserId) return
+    const item = state.entities.workItems[comment.workItemId]
+    delete state.entities.comments[commentId]
+    return { kind: 'comment', entityId: comment.workItemId, summary: `deleted a comment on ${item?.key ?? 'an item'}`, departmentId: item?.departmentId ?? null }
+  })
+}
+
 export function addComment(itemId: Id, body: string) {
   apply((state) => {
     const item = state.entities.workItems[itemId]

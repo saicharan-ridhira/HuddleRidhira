@@ -12,7 +12,15 @@ import {
   UserAvatar,
   WorkItemKey,
 } from '@/components/primitives'
-import { attentionOf, checklistProgress, isBlocked, isDueToday, isOverdue, relationsOf } from '@/lib/engine/derive'
+import {
+  attentionOf,
+  cardReasons,
+  checklistProgress,
+  isBlocked,
+  isDueToday,
+  isOverdue,
+  relationsOf,
+} from '@/lib/engine/derive'
 import type { EngineContext } from '@/lib/engine/context'
 import type { WorkItem } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -48,7 +56,10 @@ export const WorkItemCard = memo(function WorkItemCard({
   const type = ctx.workItemTypes[item.typeId]
   const labels = item.labelIds.map((id) => ctx.labels[id]!).filter(Boolean)
   const dependencyCount = relationsOf(item.id, ctx).length
-  const attention = attentionOf(item, ctx)
+  // `cardReasons` strips 'backlog': every card in the Backlog column
+  // wearing a badge would turn the loudest signal in the product into
+  // wallpaper. The column already says it.
+  const reasons = cardReasons(attentionOf(item, ctx))
 
   return (
     <article
@@ -91,10 +102,10 @@ export const WorkItemCard = memo(function WorkItemCard({
 
       <h3 className="line-clamp-2 text-[13px] leading-snug font-medium">{item.title}</h3>
 
-      {(blocked || attention.reasons.includes('blocking-others')) && (
+      {(blocked || reasons.includes('blocking-others')) && (
         <div className="flex flex-wrap items-center gap-1">
           {blocked && <BlockedBadge size="sm" />}
-          {!blocked && attention.reasons.includes('blocking-others') && (
+          {!blocked && reasons.includes('blocking-others') && (
             <span className="inline-flex h-4 items-center gap-1 rounded border border-overdue-border bg-overdue-muted px-1 text-[10px] font-medium text-overdue">
               Holding up work
             </span>

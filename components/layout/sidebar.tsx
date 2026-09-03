@@ -8,11 +8,19 @@ import {
   LayoutDashboard,
   ListTodo,
   OctagonAlert,
+  Radio,
   ScrollText,
   Settings,
 } from 'lucide-react'
 import { DynamicIcon } from '@/components/primitives'
-import { useDepartments, useEngineContext, useWorkItemsAssignedTo, useSession } from '@/lib/store/selectors'
+import {
+  useCurrentOrg,
+  useDepartments,
+  useEngineContext,
+  useLiveHuddle,
+  useSession,
+  useWorkItemsAssignedTo,
+} from '@/lib/store/selectors'
 import { isBlocked } from '@/lib/engine/derive'
 import { hueStyle } from '@/lib/ui/tokens'
 import { cn } from '@/lib/utils'
@@ -31,6 +39,8 @@ export function Sidebar() {
   const departments = useDepartments()
   const session = useSession()
   const ctx = useEngineContext()
+  const organization = useCurrentOrg()
+  const liveHuddle = useLiveHuddle(organization?.id)
   const myItems = useWorkItemsAssignedTo(session.currentUserId)
 
   const myBlockedCount = myItems.filter((item) => isBlocked(item.id, ctx)).length
@@ -43,6 +53,24 @@ export function Sidebar() {
       <Section>
         <NavLink href="/dashboard" active={pathname === '/dashboard'} icon={<LayoutDashboard className="size-3.5" />}>
           Overview
+        </NavLink>
+        {/* The huddle is one organization-wide meeting between heads of
+            department, so it belongs here rather than inside any one
+            department's workspace. */}
+        <NavLink
+          href="/huddle"
+          active={pathname.startsWith('/huddle')}
+          icon={<Radio className={cn('size-3.5', liveHuddle && 'text-blocked')} />}
+          badge={liveHuddle ? undefined : undefined}
+        >
+          <span className="flex items-center gap-1.5">
+            Huddle
+            {liveHuddle && (
+              <span className="inline-flex h-3.5 items-center rounded bg-blocked-muted px-1 text-[9px] font-medium text-blocked">
+                live
+              </span>
+            )}
+          </span>
         </NavLink>
       </Section>
 

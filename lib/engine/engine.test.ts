@@ -5,11 +5,14 @@ import {
   attentionOf,
   blockDetails,
   blockedDownstream,
+  cardReasons,
   checklistProgress,
+  huddleAgenda,
   isBlocked,
   isDone,
   isOverdue,
   relationsByKind,
+  statusCategoryOf,
 } from './derive'
 import { applyFilter, countConditions, evaluateFilter } from './filter'
 import { applySort } from './sort'
@@ -130,30 +133,136 @@ describe('overdue', () => {
 })
 
 describe('attention ranking drives the huddle', () => {
-  it('ranks a blocker above an overdue item', () => {
+  it('ranks a blocker above a backlog item', () => {
     const ctx = context()
     const blocked = attentionOf(item(ctx, 'wi-eng-124'), ctx)
-    const overdue = attentionOf(item(ctx, 'wi-eng-109'), ctx)
-    expect(blocked.score).toBeGreaterThan(overdue.score)
+    const backlog = attentionOf(item(ctx, 'wi-eng-155'), ctx)
+    expect(blocked.score).toBeGreaterThan(backlog.score)
     expect(blocked.reasons).toContain('blocked')
+    expect(backlog.reasons).toContain('backlog')
+  })
+
+  it('treats a backlog item as worth discussing', () => {
+    const ctx = context()
+    // ENG-155 sits in Backlog, unblocked and undated.
+    const attention = attentionOf(item(ctx, 'wi-eng-155'), ctx)
+    expect(statusCategoryOf(item(ctx, 'wi-eng-155'), ctx)).toBe('backlog')
+    expect(attention.needsDiscussion).toBe(true)
+  })
+
+  it('does not treat an overdue in-progress item as a discussion topic on its own', () => {
+    const ctx = context()
+    // ENG-119 is overdue but in development — the head already knows.
+    const attention = attentionOf(item(ctx, 'wi-eng-119'), ctx)
+    expect(attention.reasons).toContain('overdue')
+    expect(attention.reasons).not.toContain('backlog')
+    expect(attention.needsDiscussion).toBe(false)
   })
 
   it('does not treat high priority alone as a discussion topic', () => {
     const ctx = context()
-    // ENG-151 is high priority, not blocked, not overdue.
+    // ENG-151 is high priority, in review, not blocked.
     const attention = attentionOf(item(ctx, 'wi-eng-151'), ctx)
     expect(attention.reasons).toContain('high-priority')
     expect(attention.needsDiscussion).toBe(false)
   })
 
-  it('surfaces exactly three discussion items for Sai out of a much longer list', () => {
+  it('never lets modifiers lift an item into the tier above', () => {
     const ctx = context()
-    const sais = Object.values(ctx.workItems).filter((entry) => entry.assigneeId === 'u-sai')
-    const needsDiscussion = sais.filter((entry) => attentionOf(entry, ctx).needsDiscussion)
+    const all = Object.values(ctx.workItems)
 
-    // PRD §31: "3 things to discuss", not "23 tasks".
-    expect(sais.length).toBe(23)
-    expect(needsDiscussion).toHaveLength(3)
+    const worstBacklog = Math.max(
+      ...all
+        .map((entry) => attentionOf(entry, ctx))
+        .filter((a) => a.reasons.includes('backlog'))
+        .map((a) => a.score),
+    )
+    const bestNonBlocked = Math.min(
+      ...all
+        .map((entry) => attentionOf(entry, ctx))
+        .filter((a) => a.reasons.includes('blocking-others'))
+        .map((a) => a.score),
+    )
+    expect(worstBacklog).toBeLessThan(bestNonBlocked)
+
+    const worstBlockingOthers = Math.max(
+      ...all
+        .map((entry) => attentionOf(entry, ctx))
+        .filter((a) => a.reasons.includes('blocking-others'))
+        .map((a) => a.score),
+    )
+    const weakestBlocked = Math.min(
+      ...all
+        .map((entry) => attentionOf(entry, ctx))
+        .filter((a) => a.reasons.includes('blocked'))
+        .map((a) => a.score),
+    )
+    expect(worstBlockingOthers).toBeLessThan(weakestBlocked)
+  })
+
+  it('excludes backlog from the reasons a board card renders', () => {
+    const ctx = context()
+    const backlogItem = attentionOf(item(ctx, 'wi-eng-155'), ctx)
+    expect(backlogItem.reasons).toContain('backlog')
+    // Otherwise every card in every Backlog column would light up.
+    expect(cardReasons(backlogItem)).not.toContain('backlog')
+  })
+
+  it('never marks finished work as needing discussion', () => {
+    const ctx = context()
+    const done = item(ctx, 'wi-eng-101')
+    expect(isDone(done, ctx)).toBe(true)
+    expect(attentionOf(done, ctx).needsDiscussion).toBe(false)
+  })
+})
+
+describe('the huddle agenda a department brings', () => {
+  const engineering = (ctx: EngineContext) =>
+    Object.values(ctx.workItems).filter((entry) => entry.departmentId === 'dept-engineering')
+
+  it('caps backlog but never caps blockers', () => {
+    const ctx = context()
+    const items = engineering(ctx)
+    const agenda = huddleAgenda(items, ctx, 3)
+
+    const everyBlocker = items.filter((entry) => isBlocked(entry.id, ctx))
+    // Blockers may also arrive via "blocking others", so the agenda is at
+    // least every genuinely blocked item — never fewer.
+    expect(agenda.blockers.length).toBeGreaterThanOrEqual(everyBlocker.length)
+    expect(agenda.backlog).toHaveLength(3)
+    expect(agenda.remainingBacklog.length).toBeGreaterThan(0)
+  })
+
+  it('surfaces a handful out of a large backlog', () => {
+    const ctx = context()
+    const items = engineering(ctx)
+    const backlogTotal = items.filter(
+      (entry) => !isDone(entry, ctx) && statusCategoryOf(entry, ctx) === 'backlog',
+    ).length
+
+    // The whole point of the cap: Engineering carries a lot of untouched
+    // work, and reading it all out would bury the few that matter.
+    expect(backlogTotal).toBeGreaterThan(15)
+    expect(huddleAgenda(items, ctx, 3).backlog.length).toBe(3)
+  })
+
+  it('orders the surfaced backlog by score, highest first', () => {
+    const ctx = context()
+    const agenda = huddleAgenda(engineering(ctx), ctx, 5)
+    const scores = agenda.backlog.map((entry) => attentionOf(entry, ctx).score)
+    expect([...scores].sort((a, b) => b - a)).toEqual(scores)
+  })
+
+  it('gives every department something to bring', () => {
+    const ctx = context()
+    for (const department of Object.values(ctx.departments)) {
+      const items = Object.values(ctx.workItems).filter((entry) => entry.departmentId === department.id)
+      const agenda = huddleAgenda(items, ctx, 3)
+      // A leadership huddle where three of four heads have nothing to say
+      // is a seeding accident, not a product statement.
+      expect(agenda.blockers.length + agenda.backlog.length).toBeGreaterThan(0)
+      expect(department.leadId).toBeTruthy()
+    }
   })
 })
 

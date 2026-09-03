@@ -2,7 +2,7 @@
 
 A configurable work-management prototype built around the way teams actually operate.
 
-> **The work board is the source of truth. A Huddle is a guided view over that work, organized person-by-person to identify progress, blockers, dependencies and actions.**
+> **The work board is the source of truth. The Huddle is a guided view over it — one meeting between heads of department, walking department by department through what cannot proceed and what nobody has started.**
 
 Frontend-only prototype. Next.js 16, React 19, TypeScript, Tailwind CSS v4, Radix primitives, zustand.
 
@@ -35,32 +35,37 @@ Fifteen steps, about five minutes. This is the flow the prototype is built to ma
 **Setup.** Open `/login`, sign in. You land on the dashboard as Sai Charan, Engineering Lead at Acme Corp.
 
 1. **The dashboard leads with problems, not metrics.** The four counters are quiet; *Attention required* is not. Note that Blockers is the only tile with colour.
-2. **Go to Engineering → Board.** Scan the columns: Backlog, Ready, In Development, Code Review, QA, Done. **There is no "Blocked" column.** Blocked work sits in the status it is genuinely in, wearing a badge — status says *where* the work is, blocked says *whether it can proceed*.
-3. **Open `ENG-124 Payment API`.** The drawer shows `Blocked`, "Waiting for ENG-120 Finance credentials", and a checklist at 3 of 5. Scroll: the body is chunked into Work, Schedule, Classification, Description, Progress, Blockers, Relationships, Custom fields, Comments, Activity.
-4. **Look at Relationships.** ENG-124 is *waiting for* ENG-120 and *holding up* ENG-131. The same relationship, visible from both sides, stored once.
-5. **Close the drawer and edit inline.** Change a card's status, priority or assignee straight from the board. No modal, no save button.
-6. **Try the toolbar.** `Filter · Group · Sort · View · ⋯` — five controls, nothing more. Filter → Blocked. Group → Assignee. Then Filter → Clear.
-7. **Advanced filter.** Filter → *Advanced filter…* builds `(A AND B) OR C`. The simple picker and the builder write into the same tree.
+2. **Look at the Leadership huddle panel.** One row per department, each showing its head and what they are carrying — blockers and backlog. This is the agenda before anyone walks into the room.
+3. **Sidebar → Engineering → Board.** Scan the columns: Backlog, Ready, In Development, Code Review, QA, Done. **There is no "Blocked" column.** Blocked work sits in the status it is genuinely in, wearing a badge — status says *where* the work is, blocked says *whether it can proceed*.
+4. **Open `ENG-124 Payment API`.** The drawer shows `Blocked`, "Waiting for ENG-120 Finance credentials", and a checklist at 3 of 5. Scroll: the body is chunked into Work, Schedule, Classification, Description, Progress, Blockers, Relationships, Custom fields, Comments, Activity.
+5. **Look at Relationships.** ENG-124 is *waiting for* ENG-120 and *holding up* ENG-131. The same relationship, visible from both sides, stored once.
+6. **Edit inline, and create properly.** Change a card's status or assignee straight from the board — no modal. Then **New work item** for the full form when you already know what the work is.
+7. **The toolbar is five controls**: `Filter · Group · Sort · View · ⋯`. Filter → Blocked. Group → Assignee. Then Filter → Clear. *Advanced filter…* builds `(A AND B) OR C` — the simple picker and the builder write into the same tree.
 8. **Switch views.** Board → List → Table → Calendar → Timeline. Your filter, grouping and sort survive the move. On Timeline, follow the red arrows down the payment chain: ENG-120 → ENG-124 → ENG-131 → ENG-140.
 
-**The huddle.**
+**The huddle.** It lives in the sidebar, not inside a department — there is one, and it is between heads of department.
 
-9. **Start huddle.** Attendance opens with everyone present. Click **Karthik Iyer** to mark him absent — 9 / 10. Start.
-10. **Sai's screen says "3 things to discuss", not "23 tasks".** Expand *Show all 23 items*, then collapse it again. This is the single most important behaviour in the product: a conversation cannot hold twenty-three items, and showing them all guarantees the important three get skimmed past.
-11. **Each row says why it is there.** Blocked · Holding up work · Overdue · Due today. Ordering is blockers first, then dependency problems, then overdue, then high-priority work.
+9. **Huddle → Start the leadership huddle.** Attendance lists all four departments, each with its head. Click **Sales** to mark it absent — 3 / 4. Start.
+10. **Engineering is reviewed first, spoken for by Sai.** The agenda is one ranked list: **every blocker**, then the **top three backlog items**. Blockers are never capped — there are few and each is a real problem. Backlog is, because Engineering carries twenty-six untouched items and reading them all out would bury the three that matter. Click *Show 20 more backlog items*, then *Show fewer*.
+11. **Each row says why it is there.** Blocked · Not started · Holding up work · Overdue. Note that *overdue alone does not put an item on the agenda* — a late in-progress item is something the head already knows about; an untouched backlog item is exactly what never gets raised unless a meeting raises it.
 12. **Capture the discussion.** On `ENG-124`, fill in *Why is it stuck?* and *Decision*, then add an action — "Follow up with Finance at 2pm", owner Sai, due Today.
 13. **The moment.** In the discussion panel's Dependencies section, click **ENG-120**. In the drawer that opens, set its status to **Done**. Close the drawer.
 
-    ENG-124 flips to **Unblocked** in place. The dependency panel re-labels itself "Was waiting for". The department's blocked count drops from 9 to 7 (ENG-117 was waiting on ENG-120 too). Sai's "1 blocker" stat disappears. Nothing was refreshed and no flag was set anywhere — `isBlocked` is derived, so the whole product re-reads the same truth.
+    ENG-124 flips to **Unblocked** in place. The dependency panel re-labels itself "Was waiting for". Engineering's blocker count drops. Nothing was refreshed and no flag was set anywhere — `isBlocked` is derived, so the whole product re-reads the same truth.
 
-14. **Next → Rahul.** Review lightly, then keep clicking Next to reach **Finish**.
-15. **The summary** leads with actions grouped by owner, then decisions, then every item changed during the huddle. **Complete huddle** returns you to the board — where all of it already is. Nothing was transcribed.
+14. **Next → Product.** Aditya's turn. Note `PRD-30 Usage-based billing spec` is blocked by **ENG-120** — the same item Engineering just resolved. Cross-department waiting is the single most useful thing a leadership meeting surfaces. Keep clicking Next to reach **Finish**.
+15. **The summary** leads with actions grouped by owner, then decisions, then every item changed during the huddle. **Complete huddle** returns you to the dashboard — where all of it already is. Nothing was transcribed.
 
-**Afterwards.** Settings → Audit logs shows every change from steps 5–14. Refresh the page: it all survives. Settings → Organization → *Reset demo data* restores the pristine board.
+**Afterwards.** Settings → Audit logs shows every change from steps 6–14. Refresh the page: it all survives.
 
-Also worth showing: `⌘K` (search and commands in one surface), and the theme toggle under your avatar — blocked, overdue and priority stay legible and mean the same thing in both themes.
+**The CRUD round-trip**, worth showing separately:
 
----
+- Settings → Members → **Add** an employee, with departments and colour.
+- Settings → Departments → make them **head** of a department, or toggle their membership.
+- Huddle → they now appear in the roster, speaking for that department.
+- Settings → Members → remove them. The confirmation **names what happens to their work** before it happens, and lets you hand it to someone else rather than silently orphaning it.
+
+Also worth showing: `⌘K` (search and commands in one surface), and the theme toggle under your avatar.
 
 ## Architecture
 
@@ -78,7 +83,32 @@ Nothing anywhere holds a blocked flag. That is why step 13 works with no invalid
 
 This is also why there is no Blocked column and no Blocked status. **Status = where the work is. Blocked = whether it can proceed.** They are different questions and the model keeps them apart.
 
-### 2. One pipeline, every view
+### 2. The huddle ranks by one rule the whole product shares
+
+`attentionOf` decides what matters, and the huddle, the dashboard's "Attention required", the department overview and `/blocked` all read it — so "the most important thing" means one thing everywhere.
+
+The meeting is between heads of department, and what it exists for is **work that cannot proceed, and work nobody has started**. So exactly two signals qualify:
+
+```
+needsDiscussion = blocked || backlog
+```
+
+Overdue and due-today deliberately do *not* qualify on their own; they still show on rows and still raise the score. Neither does "holding up other work" — if ENG-124 is blocked by ENG-120, listing both makes the room discuss one dependency twice, and the blocked row already names what it waits for.
+
+Scoring is tiered, with modifiers sized so no combination can lift an item into the tier above:
+
+| Signal | Score |
+|---|---|
+| Blocked | 1000 |
+| Holding up other work | 600 (+8 per downstream item, 5 counted) |
+| In a backlog status | 300 |
+| *modifier* overdue | +150 |
+| *modifier* due today | +80 |
+| *modifier* priority | +0…60 |
+
+One consequence worth knowing: `backlog` is excluded from board-card badges. Every card in every Backlog column wearing a badge would turn the loudest signal in the product into wallpaper — the column already says it.
+
+### 3. One pipeline, every view
 
 ```
 WorkItem[] → filter(FilterNode) → sort(SortRule[]) → group(GroupKey) → render
@@ -88,7 +118,7 @@ Board, List, Table, Calendar, Timeline and the Huddle all consume this. Only the
 
 Filters are a tree, so `(Status = Doing AND Priority = High) OR Blocked = true` is expressible; the simple picker writes a flat AND group into the same structure, so there is one evaluator and the two can never disagree.
 
-### 3. Visual consistency is structural
+### 4. Visual consistency is structural
 
 No component renders a status, priority, label or blocked state with its own markup. They all come from `components/primitives/`. `<BlockedBadge>` is the *only* way anything draws "blocked", so the board, list, table, timeline, huddle, dashboard and command palette cannot drift apart.
 
@@ -143,12 +173,15 @@ Stated plainly rather than left to be discovered:
 - **No automation or workflow-rule engine.** Deliberately out of scope; a normal user should never need to reach that layer.
 - **Comments are local and un-threaded**, and reports are a small set of real numbers computed live rather than an analytics product.
 - **Organization switching** changes the active org, but only Acme Corp is seeded with work.
+- **There is no per-department huddle.** One organization-wide meeting between heads of department, configured in Settings → Huddles.
 
 ### Seed data
 
 Built relative to "now", so overdue work is genuinely overdue whenever you open it, and deterministic, so *Reset demo data* restores an identical board.
 
-Four departments on four genuinely different workflows. Sai owns **23** work items of which exactly **3** warrant discussion — that contrast is what step 10 demonstrates, so it is seeded deliberately and asserted in a test. The payments chain `ENG-120 → ENG-124 → ENG-131 → ENG-140` is what step 13 unwinds.
+Four departments on four genuinely different workflows, each with a head: Sai (Engineering), Aditya (Product), Rohan (Marketing), Manish (Sales).
+
+Every department carries at least one genuine blocker and a real backlog, because a leadership huddle where three of four heads have nothing to say is a seeding accident rather than a product statement — a test asserts it. Several blockers are deliberately **cross-departmental**: `PRD-30` and `SLS-190` wait on Engineering, which is what makes the meeting worth holding. The payments chain `ENG-120 → ENG-124 → ENG-131 → ENG-140` is what step 13 unwinds.
 
 > A note on keys: the PRD writes the payments work as both `ENG-124` (§13's card) and `PAY-124` (§23's chain). Keys here are prefixed per department, so it is `ENG-124` throughout — same item, one prefix.
 
@@ -165,9 +198,12 @@ Four departments on four genuinely different workflows. Sai owns **23** work ite
 - nested `(A AND B) OR C` evaluation
 - multi-level sort, including undated work staying last in *both* directions
 - group bucketing: empty board columns kept, empty list groups dropped
-- that Sai has 23 items and exactly 3 need discussion
+- the ranking rules: a backlog item qualifies for discussion; an overdue in-progress item does not qualify on its own; a blocker outranks any backlog item; no modifier can lift an item into the tier above
+- that `backlog` never reaches a board card's badges
+- that the backlog cap holds while blockers are never capped
+- that every department has something to bring to the huddle
 
-`npm run verify:golden` drives a real browser through the fifteen steps above and asserts the moments that matter, including the step-13 cascade.
+`npm run verify:golden` drives a real browser through the huddle flow and asserts the moments that matter: 3/4 departments present, the capped backlog and its expander, and the step-13 cascade where marking ENG-120 Done flips ENG-124 to Unblocked in place.
 
 ---
 

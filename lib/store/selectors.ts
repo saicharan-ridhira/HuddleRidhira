@@ -152,12 +152,8 @@ export function useSavedViews(departmentId?: Id): SavedView[] {
  */
 export function useWorkingView(departmentId: Id | undefined, layout: ViewConfig['layout']): ViewConfig {
   const stored = useStore((state) => (departmentId ? state.workingViews[departmentId] : undefined))
-  const department = useDepartment(departmentId)
 
-  return useMemo(() => {
-    const base = stored ?? defaultViewConfig({ groupBy: department?.huddle.groupBy === 'assignee' ? 'status' : 'status' })
-    return { ...base, layout }
-  }, [stored, layout, department])
+  return useMemo(() => ({ ...(stored ?? defaultViewConfig()), layout }), [stored, layout])
 }
 
 export function useActiveHuddle() {
@@ -173,13 +169,14 @@ export function useStoreHuddles() {
   return useStore(useShallow((state) => state.order.huddleIds.map((id) => state.entities.huddles[id]!).filter(Boolean)))
 }
 
-export function useHuddlesForDepartment(departmentId: Id | undefined) {
-  return useStore(
-    useShallow((state) =>
-      state.order.huddleIds
-        .map((id) => state.entities.huddles[id]!)
-        .filter((huddle) => huddle && (!departmentId || huddle.departmentId === departmentId)),
-    ),
+/** The live huddle for an organization, if one is open. */
+export function useLiveHuddle(organizationId: Id | undefined) {
+  return useStore((state) =>
+    organizationId
+      ? state.order.huddleIds
+          .map((id) => state.entities.huddles[id])
+          .find((huddle) => huddle && huddle.organizationId === organizationId && huddle.stage !== 'complete')
+      : undefined,
   )
 }
 

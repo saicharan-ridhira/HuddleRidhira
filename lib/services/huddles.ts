@@ -11,23 +11,24 @@ function formatDate(date: Date): string {
 }
 
 /**
- * PRD §26–§34. The huddle is a state machine over a department's
- * existing work:
+ * The huddle is a state machine over the organization's existing work:
  *
- *   setup → attendance → running(personIndex) → summary → complete
+ *   attendance → running(department index) → summary → complete
  *
- * Nothing here duplicates work data. Discussions and actions reference
- * work items; every change made during a huddle is written to the item
- * itself by the work-item service, so when the huddle ends the board is
- * already correct with no reconciliation step.
+ * It is a meeting between heads of department, and it reviews
+ * *departments* — each represented by its head — rather than people who
+ * happen to be heads. Nothing here duplicates work data: discussions and
+ * actions reference work items, and every change made during a huddle is
+ * written to the item itself by the work-item service, so when the
+ * huddle ends the board is already correct with no reconciliation step.
  */
 
-/** Opens the attendance screen for a department, reusing any live huddle. */
-export function openHuddle(departmentId: Id): Id | null {
+/** Opens the attendance screen for an organization, reusing any live huddle. */
+export function openHuddle(organizationId: Id): Id | null {
   const state = useStore.getState()
 
   const existing = Object.values(state.entities.huddles).find(
-    (huddle) => huddle.departmentId === departmentId && huddle.stage !== 'complete',
+    (huddle) => huddle.organizationId === organizationId && huddle.stage !== 'complete',
   )
   if (existing) {
     useStore.getState().apply((draft) => {
@@ -40,25 +41,41 @@ export function openHuddle(departmentId: Id): Id | null {
   let createdId: Id | null = null
 
   apply((draft) => {
-    const department = draft.entities.departments[departmentId]
-    if (!department) return
+    const organization = draft.entities.organizations[organizationId]
+    if (!organization) return
 
     const id = newId('hud')
     const now = new Date()
 
+    const departments = draft.order.departmentIds
+      .map((departmentId) => draft.entities.departments[departmentId]!)
+      .filter(Boolean)
+
+    // A department with no head has nobody to speak for it. Rather than
+    // quietly dropping it, record it so the huddle can say so out loud —
+    // an absent department is a fact the room should hear.
+    const represented = departments.filter((department) => Boolean(department.leadId))
+    const skipped = departments.filter((department) => !department.leadId)
+
     draft.entities.huddles[id] = {
       id,
-      departmentId,
-      title: `${department.name} Huddle — ${formatDate(now)}`,
+      organizationId,
+      title: `Leadership Huddle — ${formatDate(now)}`,
       stage: 'attendance',
       scheduledFor: now.toISOString(),
       startedAt: null,
       endedAt: null,
       facilitatorId: draft.session.currentUserId,
       // Everyone starts present; marking absentees is the faster path.
-      participants: department.memberIds.map((userId) => ({ userId, attendance: 'present', reviewedAt: null })),
+      participants: represented.map((department) => ({
+        departmentId: department.id,
+        userId: department.leadId,
+        attendance: 'present',
+        reviewedAt: null,
+      })),
       reviewOrder: [],
       currentIndex: 0,
+      skippedDepartmentIds: skipped.map((department) => department.id),
       discussionIds: [],
       actionIds: [],
       updatedWorkItemIds: [],
@@ -69,26 +86,26 @@ export function openHuddle(departmentId: Id): Id | null {
     draft.activeHuddleId = id
     createdId = id
 
-    return { kind: 'huddle', entityId: id, summary: `opened the ${department.name} huddle`, departmentId }
+    return { kind: 'huddle', entityId: id, summary: 'opened the leadership huddle', departmentId: null }
   })
 
   return createdId
 }
 
-export function setAttendance(huddleId: Id, userId: Id, attendance: AttendanceState) {
+export function setAttendance(huddleId: Id, departmentId: Id, attendance: AttendanceState) {
   apply((state) => {
     const huddle = state.entities.huddles[huddleId]
-    const participant = huddle?.participants.find((entry) => entry.userId === userId)
+    const participant = huddle?.participants.find((entry) => entry.departmentId === departmentId)
     if (!participant) return
     participant.attendance = attendance
     return null
   })
 }
 
-export function toggleAttendance(huddleId: Id, userId: Id) {
+export function toggleAttendance(huddleId: Id, departmentId: Id) {
   apply((state) => {
     const huddle = state.entities.huddles[huddleId]
-    const participant = huddle?.participants.find((entry) => entry.userId === userId)
+    const participant = huddle?.participants.find((entry) => entry.departmentId === departmentId)
     if (!participant) return
     participant.attendance = participant.attendance === 'present' ? 'absent' : 'present'
     return null
@@ -96,44 +113,39 @@ export function toggleAttendance(huddleId: Id, userId: Id) {
 }
 
 /**
- * Begins the person-by-person review. Only people marked present are put
- * in the review order — walking an absent person's board wastes the
- * room's time, and their work still shows on the board afterwards.
+ * Begins the department-by-department review. Only departments whose
+ * head is present are put in the review order — reviewing a department
+ * nobody can speak for wastes the room's time, and its work is still on
+ * the board afterwards.
  */
 export function startHuddle(huddleId: Id) {
   apply((state) => {
     const huddle = state.entities.huddles[huddleId]
     if (!huddle) return
 
-    const present = huddle.participants.filter((entry) => entry.attendance === 'present').map((entry) => entry.userId)
-
-    huddle.reviewOrder = present
+    huddle.reviewOrder = huddle.participants
+      .filter((entry) => entry.attendance === 'present')
+      .map((entry) => entry.departmentId)
     huddle.currentIndex = 0
     huddle.stage = 'running'
     huddle.startedAt = new Date().toISOString()
     state.activeHuddleId = huddleId
 
-    const department = state.entities.departments[huddle.departmentId]
-    return {
-      kind: 'huddle',
-      entityId: huddleId,
-      summary: `started the ${department?.name ?? ''} huddle`.trim(),
-      departmentId: huddle.departmentId,
-    }
+    return { kind: 'huddle', entityId: huddleId, summary: 'started the leadership huddle', departmentId: null }
   })
 }
 
-export function goToPerson(huddleId: Id, index: number) {
+export function goToDepartment(huddleId: Id, index: number) {
   apply((state) => {
     const huddle = state.entities.huddles[huddleId]
     if (!huddle) return
 
     const clamped = Math.max(0, Math.min(index, huddle.reviewOrder.length - 1))
 
-    // Mark everyone we've moved past as reviewed, so the roster shows progress.
-    const currentUserId = huddle.reviewOrder[huddle.currentIndex]
-    if (currentUserId && clamped > huddle.currentIndex) {
-      const participant = huddle.participants.find((entry) => entry.userId === currentUserId)
+    // Mark what we've moved past as reviewed, so the roster shows progress.
+    const currentDepartmentId = huddle.reviewOrder[huddle.currentIndex]
+    if (currentDepartmentId && clamped > huddle.currentIndex) {
+      const participant = huddle.participants.find((entry) => entry.departmentId === currentDepartmentId)
       if (participant && !participant.reviewedAt) participant.reviewedAt = new Date().toISOString()
     }
 
@@ -142,20 +154,20 @@ export function goToPerson(huddleId: Id, index: number) {
   })
 }
 
-export function nextPerson(huddleId: Id) {
+export function nextDepartment(huddleId: Id) {
   const huddle = useStore.getState().entities.huddles[huddleId]
   if (!huddle) return
   if (huddle.currentIndex >= huddle.reviewOrder.length - 1) {
     finishReview(huddleId)
     return
   }
-  goToPerson(huddleId, huddle.currentIndex + 1)
+  goToDepartment(huddleId, huddle.currentIndex + 1)
 }
 
-export function previousPerson(huddleId: Id) {
+export function previousDepartment(huddleId: Id) {
   const huddle = useStore.getState().entities.huddles[huddleId]
   if (!huddle) return
-  goToPerson(huddleId, huddle.currentIndex - 1)
+  goToDepartment(huddleId, huddle.currentIndex - 1)
 }
 
 /** Moves to the summary screen — the huddle is not yet closed. */
@@ -164,9 +176,9 @@ export function finishReview(huddleId: Id) {
     const huddle = state.entities.huddles[huddleId]
     if (!huddle) return
 
-    const lastUserId = huddle.reviewOrder[huddle.currentIndex]
-    if (lastUserId) {
-      const participant = huddle.participants.find((entry) => entry.userId === lastUserId)
+    const lastDepartmentId = huddle.reviewOrder[huddle.currentIndex]
+    if (lastDepartmentId) {
+      const participant = huddle.participants.find((entry) => entry.departmentId === lastDepartmentId)
       if (participant && !participant.reviewedAt) participant.reviewedAt = new Date().toISOString()
     }
 
@@ -194,13 +206,7 @@ export function completeHuddle(huddleId: Id) {
     huddle.endedAt = new Date().toISOString()
     if (state.activeHuddleId === huddleId) state.activeHuddleId = null
 
-    const department = state.entities.departments[huddle.departmentId]
-    return {
-      kind: 'huddle',
-      entityId: huddleId,
-      summary: `completed the ${department?.name ?? ''} huddle`.trim(),
-      departmentId: huddle.departmentId,
-    }
+    return { kind: 'huddle', entityId: huddleId, summary: 'completed the leadership huddle', departmentId: null }
   })
 }
 
@@ -208,7 +214,6 @@ export function cancelHuddle(huddleId: Id) {
   apply((state) => {
     const huddle = state.entities.huddles[huddleId]
     if (!huddle) return
-    const departmentId = huddle.departmentId
 
     for (const id of huddle.discussionIds) delete state.entities.huddleDiscussions[id]
     for (const id of huddle.actionIds) delete state.entities.huddleActions[id]
@@ -216,7 +221,7 @@ export function cancelHuddle(huddleId: Id) {
     state.order.huddleIds = state.order.huddleIds.filter((id) => id !== huddleId)
     if (state.activeHuddleId === huddleId) state.activeHuddleId = null
 
-    return { kind: 'huddle', entityId: huddleId, summary: 'discarded a huddle', departmentId }
+    return { kind: 'huddle', entityId: huddleId, summary: 'discarded a huddle', departmentId: null }
   })
 }
 
@@ -226,7 +231,8 @@ export function cancelHuddle(huddleId: Id) {
 
 export interface DiscussionInput {
   workItemId: Id
-  subjectUserId: Id | null
+  /** Which department's review this came up in. */
+  subjectDepartmentId: Id | null
   why: string
   decision: string
 }
@@ -250,7 +256,7 @@ export function recordDiscussion(huddleId: Id, input: DiscussionInput): Id | nul
       if (existing) {
         existing.why = input.why
         existing.decision = input.decision
-        existing.subjectUserId = input.subjectUserId
+        existing.subjectDepartmentId = input.subjectDepartmentId
       }
       createdId = existingId
     } else {
@@ -259,7 +265,7 @@ export function recordDiscussion(huddleId: Id, input: DiscussionInput): Id | nul
         id,
         huddleId,
         workItemId: input.workItemId,
-        subjectUserId: input.subjectUserId,
+        subjectDepartmentId: input.subjectDepartmentId,
         why: input.why,
         decision: input.decision,
         createdAt: new Date().toISOString(),
@@ -315,7 +321,7 @@ export function addAction(huddleId: Id, input: ActionInput): Id | null {
       kind: 'huddle-action',
       entityId: id,
       summary: `created an action for ${owner?.name ?? 'someone'}: ${input.text.trim()}`,
-      departmentId: huddle.departmentId,
+      departmentId: null,
     }
   })
 
@@ -327,12 +333,11 @@ export function toggleAction(actionId: Id) {
     const action = state.entities.huddleActions[actionId]
     if (!action) return
     action.done = !action.done
-    const huddle = state.entities.huddles[action.huddleId]
     return {
       kind: 'huddle-action',
       entityId: actionId,
       summary: `${action.done ? 'completed' : 'reopened'} the action “${action.text}”`,
-      departmentId: huddle?.departmentId ?? null,
+      departmentId: null,
     }
   })
 }
@@ -345,6 +350,32 @@ export function removeAction(actionId: Id) {
     if (huddle) huddle.actionIds = huddle.actionIds.filter((id) => id !== actionId)
     delete state.entities.huddleActions[actionId]
     return null
+  })
+}
+
+/** Removes a completed huddle from history, with its discussions and actions. */
+export function deleteHuddle(huddleId: Id) {
+  apply((state) => {
+    const huddle = state.entities.huddles[huddleId]
+    if (!huddle) return
+    const { title } = huddle
+
+    for (const id of huddle.discussionIds) delete state.entities.huddleDiscussions[id]
+    for (const id of huddle.actionIds) delete state.entities.huddleActions[id]
+    delete state.entities.huddles[huddleId]
+    state.order.huddleIds = state.order.huddleIds.filter((id) => id !== huddleId)
+    if (state.activeHuddleId === huddleId) state.activeHuddleId = null
+
+    return { kind: 'huddle', entityId: huddleId, summary: `deleted “${title}”`, departmentId: null }
+  })
+}
+
+export function updateAction(actionId: Id, patch: { text?: string; ownerId?: Id; dueDate?: string | null }) {
+  apply((state) => {
+    const action = state.entities.huddleActions[actionId]
+    if (!action) return
+    Object.assign(action, patch)
+    return { kind: 'huddle-action', entityId: actionId, summary: `updated the action “${action.text}”`, departmentId: null }
   })
 }
 

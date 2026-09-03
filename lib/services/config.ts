@@ -5,10 +5,12 @@ import type {
   CustomFieldKind,
   Department,
   Hue,
+  HuddleConfig,
   Id,
   Label,
   Permission,
   StatusCategory,
+  User,
   ViewLayout,
   WorkItemType,
 } from '@/lib/types'
@@ -29,8 +31,8 @@ export interface DepartmentInput {
   workflowId: Id
   defaultView: ViewLayout
   memberIds: Id[]
+  /** Required: a department with no head cannot take part in the huddle. */
   leadId: Id
-  huddle: Department['huddle']
 }
 
 export function createDepartment(input: DepartmentInput): Id | null {
@@ -43,10 +45,15 @@ export function createDepartment(input: DepartmentInput): Id | null {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '')
 
-    state.entities.departments[id] = { id, slug, ...input }
+    // The head is always a member of the department they head.
+    const memberIds = input.leadId && !input.memberIds.includes(input.leadId)
+      ? [...input.memberIds, input.leadId]
+      : input.memberIds
+
+    state.entities.departments[id] = { id, slug, ...input, memberIds }
     state.order.departmentIds.push(id)
 
-    for (const userId of input.memberIds) {
+    for (const userId of memberIds) {
       const user = state.entities.users[userId]
       if (user && !user.departmentIds.includes(id)) user.departmentIds.push(id)
     }
@@ -110,6 +117,163 @@ export function setDepartmentMembers(departmentId: Id, memberIds: Id[]) {
   })
 }
 
+
+/* ------------------------------------------------------------------ *
+ * Employees
+ * ------------------------------------------------------------------ */
+
+export interface UserInput {
+  name: string
+  email: string
+  title: string
+  roleId: Id
+  hue: Hue
+  departmentIds: Id[]
+}
+
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  const first = parts[0]?.[0] ?? '?'
+  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? '') : ''
+  return (first + last).toUpperCase()
+}
+
+export function createUser(input: UserInput): Id | null {
+  let createdId: Id | null = null
+
+  apply((state) => {
+    const id = newId('u')
+    state.entities.users[id] = {
+      id,
+      name: input.name.trim(),
+      email: input.email.trim(),
+      title: input.title.trim(),
+      roleId: input.roleId,
+      hue: input.hue,
+      initials: initialsOf(input.name),
+      departmentIds: input.departmentIds,
+    }
+    state.order.userIds.push(id)
+
+    // Department membership is stored on both sides; keep them in step.
+    for (const departmentId of input.departmentIds) {
+      const department = state.entities.departments[departmentId]
+      if (department && !department.memberIds.includes(id)) department.memberIds.push(id)
+    }
+
+    createdId = id
+    return { kind: 'member', entityId: id, summary: `added ${input.name.trim()}`, departmentId: null }
+  })
+
+  return createdId
+}
+
+export function updateUser(userId: Id, patch: Partial<Omit<User, 'id' | 'initials'>>) {
+  apply((state) => {
+    const user = state.entities.users[userId]
+    if (!user) return
+
+    const previousDepartments = [...user.departmentIds]
+    Object.assign(user, patch)
+    if (patch.name) user.initials = initialsOf(patch.name)
+
+    if (patch.departmentIds) {
+      for (const departmentId of previousDepartments) {
+        const department = state.entities.departments[departmentId]
+        if (department && !patch.departmentIds.includes(departmentId)) {
+          department.memberIds = department.memberIds.filter((id) => id !== userId)
+          // Someone removed from a department cannot still head it.
+          if (department.leadId === userId) department.leadId = ''
+        }
+      }
+      for (const departmentId of patch.departmentIds) {
+        const department = state.entities.departments[departmentId]
+        if (department && !department.memberIds.includes(userId)) department.memberIds.push(userId)
+      }
+    }
+
+    return { kind: 'member', entityId: userId, summary: `updated ${user.name}`, departmentId: null }
+  })
+}
+
+/**
+ * Removing someone has to say what happens to their work. Silently
+ * orphaning a dozen assigned items is how a board stops being
+ * trustworthy, so the caller chooses: hand the work to someone else, or
+ * leave it explicitly unassigned.
+ */
+export function deleteUser(userId: Id, options: { reassignTo: Id | null }) {
+  apply((state) => {
+    const user = state.entities.users[userId]
+    if (!user) return
+    const { name } = user
+
+    let moved = 0
+    for (const item of Object.values(state.entities.workItems)) {
+      if (item.assigneeId === userId) {
+        item.assigneeId = options.reassignTo
+        moved += 1
+      }
+      // The reporter is history, not ownership — reassigning it would
+      // rewrite who actually raised the work.
+    }
+
+    for (const department of Object.values(state.entities.departments)) {
+      department.memberIds = department.memberIds.filter((id) => id !== userId)
+      if (department.leadId === userId) department.leadId = options.reassignTo ?? ''
+    }
+
+    // A live huddle holding a departed head would render a ghost row.
+    for (const huddle of Object.values(state.entities.huddles)) {
+      if (huddle.stage === 'complete') continue
+      for (const participant of huddle.participants) {
+        if (participant.userId !== userId) continue
+        const department = state.entities.departments[participant.departmentId]
+        participant.userId = department?.leadId ?? ''
+      }
+    }
+
+    delete state.entities.users[userId]
+    state.order.userIds = state.order.userIds.filter((id) => id !== userId)
+
+    const destination = options.reassignTo ? state.entities.users[options.reassignTo]?.name : null
+    return {
+      kind: 'member',
+      entityId: userId,
+      summary:
+        moved === 0
+          ? `removed ${name}`
+          : `removed ${name} and ${destination ? `reassigned ${moved} item${moved === 1 ? '' : 's'} to ${destination}` : `unassigned ${moved} item${moved === 1 ? '' : 's'}`}`,
+      departmentId: null,
+    }
+  })
+}
+
+/** Sets the head of department — who speaks for it in the huddle. */
+export function setDepartmentLead(departmentId: Id, userId: Id) {
+  apply((state) => {
+    const department = state.entities.departments[departmentId]
+    const user = state.entities.users[userId]
+    if (!department || !user) return
+
+    const from = state.entities.users[department.leadId]?.name ?? null
+    department.leadId = userId
+
+    // A head who is not a member of their own department would not
+    // appear in its member list or pick up its work.
+    if (!department.memberIds.includes(userId)) department.memberIds.push(userId)
+    if (!user.departmentIds.includes(departmentId)) user.departmentIds.push(departmentId)
+
+    return {
+      kind: 'department',
+      entityId: departmentId,
+      summary: `made ${user.name} head of ${department.name}`,
+      detail: { field: 'lead', from, to: user.name },
+      departmentId,
+    }
+  })
+}
+
 /* ------------------------------------------------------------------ *
  * Members and roles — PRD §40
  * ------------------------------------------------------------------ */
@@ -162,6 +326,15 @@ export function createRole(name: string, description: string) {
     }
     state.order.roleIds.push(id)
     return { kind: 'role', entityId: id, summary: `created the ${name} role`, departmentId: null }
+  })
+}
+
+export function updateRole(roleId: Id, patch: { name?: string; description?: string }) {
+  apply((state) => {
+    const role = state.entities.roles[roleId]
+    if (!role) return
+    Object.assign(role, patch)
+    return { kind: 'role', entityId: roleId, summary: `updated the ${role.name} role`, departmentId: null }
   })
 }
 
@@ -249,6 +422,51 @@ export function reorderStatuses(workflowId: Id, statusIds: Id[]) {
     })
     return { kind: 'workflow', entityId: workflowId, summary: `reordered ${workflow.name}`, departmentId: null }
   })
+}
+
+export function updateWorkflow(workflowId: Id, patch: { name?: string; description?: string }) {
+  apply((state) => {
+    const workflow = state.entities.workflows[workflowId]
+    if (!workflow) return
+    Object.assign(workflow, patch)
+    return { kind: 'workflow', entityId: workflowId, summary: `updated the ${workflow.name} workflow`, departmentId: null }
+  })
+}
+
+/**
+ * Refuses while a department still runs it. Deleting a workflow out from
+ * under a board would leave every item in that department pointing at a
+ * status that no longer exists — the caller gets told, rather than the
+ * board quietly breaking.
+ */
+export function deleteWorkflow(workflowId: Id): { ok: boolean; reason?: string } {
+  const state = useStore.getState()
+  const workflow = state.entities.workflows[workflowId]
+  if (!workflow) return { ok: false, reason: 'That workflow no longer exists.' }
+
+  const inUse = Object.values(state.entities.departments).filter(
+    (department) => department.workflowId === workflowId,
+  )
+  if (inUse.length > 0) {
+    return {
+      ok: false,
+      reason: `${inUse.map((department) => department.name).join(', ')} still use${inUse.length === 1 ? 's' : ''} this workflow.`,
+    }
+  }
+  if (state.order.workflowIds.length <= 1) {
+    return { ok: false, reason: 'An organization needs at least one workflow.' }
+  }
+
+  apply((draft) => {
+    const target = draft.entities.workflows[workflowId]
+    if (!target) return
+    for (const statusId of target.statusIds) delete draft.entities.statuses[statusId]
+    delete draft.entities.workflows[workflowId]
+    draft.order.workflowIds = draft.order.workflowIds.filter((id) => id !== workflowId)
+    return { kind: 'workflow', entityId: workflowId, summary: `deleted the ${target.name} workflow`, departmentId: null }
+  })
+
+  return { ok: true }
 }
 
 export function createWorkflow(name: string, description: string) {
@@ -381,6 +599,15 @@ export function deleteCustomField(fieldId: Id) {
 /* ------------------------------------------------------------------ *
  * Organization
  * ------------------------------------------------------------------ */
+
+export function updateHuddleConfig(orgId: Id, patch: Partial<HuddleConfig>) {
+  apply((state) => {
+    const org = state.entities.organizations[orgId]
+    if (!org) return
+    Object.assign(org.huddle, patch)
+    return { kind: 'organization', entityId: orgId, summary: 'updated the huddle configuration', departmentId: null }
+  })
+}
 
 export function updateOrganization(orgId: Id, patch: { name?: string; initials?: string; hue?: Hue }) {
   apply((state) => {

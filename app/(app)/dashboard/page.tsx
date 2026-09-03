@@ -19,13 +19,14 @@ import { relativeTime } from '@/components/work/work-item-drawer'
 import {
   useAllWorkItems,
   useAuditEvents,
+  useCurrentOrg,
   useCurrentUser,
   useDepartments,
   useEngineContext,
   useStoreHuddles,
 } from '@/lib/store/selectors'
 import { useStore } from '@/lib/store/store'
-import { attentionOf, isBlocked, isDone, isOverdue } from '@/lib/engine/derive'
+import { attentionOf, isBlocked, isDone, isOverdue, statusCategoryOf } from '@/lib/engine/derive'
 import { hueStyle } from '@/lib/ui/tokens'
 import { cn } from '@/lib/utils'
 
@@ -41,6 +42,7 @@ import { cn } from '@/lib/utils'
  */
 export default function DashboardPage() {
   const user = useCurrentUser()
+  const organization = useCurrentOrg()
   const departments = useDepartments()
   const items = useAllWorkItems()
   const ctx = useEngineContext()
@@ -70,32 +72,25 @@ export default function DashboardPage() {
     [items, ctx],
   )
 
-  const todaysHuddles = useMemo(
+  /** Per-department readiness for the huddle: what its head will raise. */
+  const departmentRows = useMemo(
     () =>
       departments.map((department) => {
         const deptItems = items.filter((item) => item.departmentId === department.id)
-        const live = huddles.find((huddle) => huddle.departmentId === department.id && huddle.stage !== 'complete')
-        const lastComplete = huddles.find(
-          (huddle) => huddle.departmentId === department.id && huddle.stage === 'complete',
-        )
-
-        // Attendance is only a real number once a huddle has actually
-        // happened. Before that, showing "10/10 present" would be an
-        // invented statistic — the honest figure is the team's size.
-        const source = live ?? lastComplete
-        const attendance = source
-          ? { present: source.participants.filter((entry) => entry.attendance === 'present').length, live: Boolean(live) }
-          : null
-
         return {
           department,
-          live,
-          attendance,
-          total: department.memberIds.length,
+          head: department.leadId ? ctx.users[department.leadId] : undefined,
           blockers: deptItems.filter((item) => isBlocked(item.id, ctx)).length,
+          backlog: deptItems.filter(
+            (item) => !isDone(item, ctx) && statusCategoryOf(item, ctx) === 'backlog',
+          ).length,
         }
       }),
-    [departments, items, huddles, ctx],
+    [departments, items, ctx],
+  )
+
+  const liveHuddle = huddles.find(
+    (huddle) => huddle.organizationId === organization?.id && huddle.stage !== 'complete',
   )
 
   /** Average attendance across huddles that have actually been held. */
@@ -131,7 +126,11 @@ export default function DashboardPage() {
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
           {/* Quiet counters. The loud thing is below. */}
           <section className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-            <Counter icon={<Radio className="size-3.5" />} label="Huddles today" value={departments.length} />
+            <Counter
+              icon={<Radio className="size-3.5" />}
+              label="Departments"
+              value={departments.length}
+            />
             <Counter
               icon={<Users className="size-3.5" />}
               label="Attendance"
@@ -182,12 +181,21 @@ export default function DashboardPage() {
 
           <div className="grid gap-4 lg:grid-cols-2">
             <section className="flex flex-col gap-2">
-              <h2 className="text-[13px] font-semibold">Today&apos;s huddles</h2>
+              <div className="flex items-baseline gap-2">
+                <h2 className="text-[13px] font-semibold">Leadership huddle</h2>
+                <Button size="sm" className="ml-auto" variant={liveHuddle ? 'blocked' : 'default'} asChild>
+                  <Link href="/huddle">
+                    <Radio />
+                    {liveHuddle ? 'Resume' : 'Start'}
+                  </Link>
+                </Button>
+              </div>
+
               <div className="flex flex-col gap-1">
-                {todaysHuddles.map(({ department, live, attendance, total, blockers }) => (
+                {departmentRows.map(({ department, head, blockers, backlog }) => (
                   <Link
                     key={department.id}
-                    href={`/departments/${department.slug}/huddle`}
+                    href="/huddle"
                     className="group flex items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-2 transition-colors hover:border-ring/40"
                   >
                     <span
@@ -199,35 +207,29 @@ export default function DashboardPage() {
 
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate text-[13px] font-medium">{department.name}</span>
-                      <span className="text-[11px] text-muted-foreground">
-                        {department.huddle.cadence === 'none' ? 'No huddle' : `${department.huddle.time} · ${department.huddle.cadence}`}
+                      <span className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
+                        {head ? (
+                          <>
+                            <UserAvatar user={head} size="xs" />
+                            {head.name}
+                          </>
+                        ) : (
+                          <span className="text-overdue">No head assigned</span>
+                        )}
                       </span>
-                    </span>
-
-                    {live && (
-                      <span className="inline-flex h-5 items-center gap-1 rounded border border-blocked-border bg-blocked-muted px-1.5 text-[10px] font-medium text-blocked">
-                        <Radio className="size-2.5" />
-                        Live
-                      </span>
-                    )}
-
-                    <span className="shrink-0 text-[12px] tabular-nums text-muted-foreground">
-                      {attendance ? (
-                        <>
-                          {attendance.present}/{total} {attendance.live ? 'present' : 'last time'}
-                        </>
-                      ) : (
-                        <>{total} people</>
-                      )}
                     </span>
 
                     {blockers > 0 ? (
-                      <span className="w-20 shrink-0 text-right text-[11px] font-medium text-blocked">
-                        {blockers} blocker{blockers === 1 ? '' : 's'}
+                      <span className="shrink-0 text-[11px] font-medium tabular-nums text-blocked">
+                        {blockers} blocked
                       </span>
                     ) : (
-                      <span className="w-20 shrink-0 text-right text-[11px] text-muted-foreground">no blockers</span>
+                      <span className="shrink-0 text-[11px] text-muted-foreground">no blockers</span>
                     )}
+
+                    <span className="w-20 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
+                      {backlog} in backlog
+                    </span>
 
                     <ArrowRight className="size-3 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5" />
                   </Link>

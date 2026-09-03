@@ -2,14 +2,14 @@
 
 import { useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, CircleCheck, GitBranch, ListChecks, OctagonAlert, TriangleAlert, Users } from 'lucide-react'
+import { ArrowLeft, CircleCheck, GitBranch, Inbox, ListChecks, OctagonAlert, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DueDate, StatusIcon, UserAvatar, WorkItemKey } from '@/components/primitives'
 import { useStore } from '@/lib/store/store'
 import { huddleService } from '@/lib/services'
-import { isBlocked, isOverdue, relationsOf } from '@/lib/engine/derive'
+import { isBlocked, isDone, relationsOf, statusCategoryOf } from '@/lib/engine/derive'
 import type { EngineContext } from '@/lib/engine/context'
-import type { Department, Huddle, WorkItem } from '@/lib/types'
+import type { Huddle, Organization, WorkItem } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 /**
@@ -21,12 +21,12 @@ import { cn } from '@/lib/utils'
  */
 export function HuddleSummary({
   huddle,
-  department,
+  organization,
   items,
   ctx,
 }: {
   huddle: Huddle
-  department: Department
+  organization: Organization
   items: WorkItem[]
   ctx: EngineContext
 }) {
@@ -34,10 +34,16 @@ export function HuddleSummary({
   const openWorkItem = useStore((state) => state.openWorkItem)
 
   const stats = useMemo(() => {
+    // Only the departments actually reviewed count toward the figures —
+    // reporting numbers for a department nobody spoke for would overstate
+    // what the meeting covered.
+    const reviewed = new Set(huddle.reviewOrder)
+    const scoped = items.filter((item) => reviewed.has(item.departmentId))
+
     const present = huddle.participants.filter((entry) => entry.attendance === 'present').length
-    const blockers = items.filter((item) => isBlocked(item.id, ctx)).length
-    const dependencies = items.filter((item) => relationsOf(item.id, ctx).length > 0).length
-    const overdue = items.filter((item) => isOverdue(item, ctx)).length
+    const blockers = scoped.filter((item) => isBlocked(item.id, ctx)).length
+    const backlog = scoped.filter((item) => !isDone(item, ctx) && statusCategoryOf(item, ctx) === 'backlog').length
+    const dependencies = scoped.filter((item) => relationsOf(item.id, ctx).length > 0).length
 
     const durationMinutes = huddle.startedAt
       ? Math.max(1, Math.round((ctx.now.getTime() - new Date(huddle.startedAt).getTime()) / 60_000))
@@ -47,8 +53,8 @@ export function HuddleSummary({
       present,
       total: huddle.participants.length,
       blockers,
+      backlog,
       dependencies,
-      overdue,
       itemsUpdated: huddle.updatedWorkItemIds.length,
       actionsCreated: huddle.actionIds.length,
       durationMinutes,
@@ -73,7 +79,7 @@ export function HuddleSummary({
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 overflow-y-auto px-6 py-8 scrollbar-thin">
       <header className="flex flex-col gap-1">
-        <h1 className="text-lg font-semibold tracking-tight">{department.name} Huddle</h1>
+        <h1 className="text-lg font-semibold tracking-tight">{organization.name} Leadership Huddle</h1>
         <p className="text-[13px] text-muted-foreground">
           {stats.durationMinutes ? `${stats.durationMinutes} minutes · ` : ''}
           {new Date(huddle.scheduledFor).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
@@ -81,20 +87,15 @@ export function HuddleSummary({
       </header>
 
       <section className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-        <StatTile icon={<Users className="size-3.5" />} value={`${stats.present}/${stats.total}`} label="Attendance" />
+        <StatTile icon={<Users className="size-3.5" />} value={`${stats.present}/${stats.total}`} label="Departments" />
         <StatTile
           icon={<OctagonAlert className="size-3.5" />}
           value={stats.blockers}
           label="Blockers"
           tone={stats.blockers > 0 ? 'blocked' : 'muted'}
         />
+        <StatTile icon={<Inbox className="size-3.5" />} value={stats.backlog} label="In backlog" />
         <StatTile icon={<GitBranch className="size-3.5" />} value={stats.dependencies} label="Dependencies" />
-        <StatTile
-          icon={<TriangleAlert className="size-3.5" />}
-          value={stats.overdue}
-          label="Overdue"
-          tone={stats.overdue > 0 ? 'overdue' : 'muted'}
-        />
         <StatTile icon={<ListChecks className="size-3.5" />} value={stats.itemsUpdated} label="Items updated" />
         <StatTile icon={<CircleCheck className="size-3.5" />} value={stats.actionsCreated} label="Actions" />
       </section>
@@ -187,7 +188,7 @@ export function HuddleSummary({
           size="lg"
           onClick={() => {
             huddleService.completeHuddle(huddle.id)
-            router.push(`/departments/${department.slug}/board`)
+            router.push('/dashboard')
           }}
         >
           <CircleCheck />

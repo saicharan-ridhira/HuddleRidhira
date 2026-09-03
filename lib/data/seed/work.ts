@@ -160,6 +160,59 @@ const ENGINEERING: ItemSpec[] = [
 ]
 
 /* ------------------------------------------------------------------ *
+ * Anchors for the other departments
+ *
+ * The huddle is between heads of department, so every department needs
+ * at least one blocker its head can actually speak to. Leaving that to
+ * the random draw produced meetings where three of four heads had
+ * nothing, which reads as a seeding accident rather than a product
+ * statement. These are hand-written and cross-departmental on purpose —
+ * the most interesting thing a leadership meeting surfaces is one
+ * department waiting on another.
+ * ------------------------------------------------------------------ */
+
+const ANCHORS: ItemSpec[] = [
+  {
+    n: 30, title: 'Usage-based billing spec', dept: 'dept-product', type: 'wt-story', status: 'st-prd-build',
+    assignee: 'u-sneha', priority: 'high', due: 4, labels: ['lbl-feature', 'lbl-enterprise'],
+    desc: 'Metering model and invoice format for usage-based plans. Cannot be finalised until the payment provider contract is signed.',
+    createdDaysAgo: 18, updatedMinutesAgo: 260,
+  },
+  {
+    n: 31, title: 'Enterprise SSO rollout plan', dept: 'dept-product', type: 'wt-task', status: 'st-prd-defined',
+    assignee: 'u-aditya', priority: 'high', due: 9, labels: ['lbl-enterprise', 'lbl-customer'],
+    desc: 'Sequencing SSO across the three accounts that asked for it. Waiting on the security review to close.',
+    createdDaysAgo: 14, updatedMinutesAgo: 700,
+  },
+  {
+    n: 60, title: 'Launch week announcement', dept: 'dept-marketing', type: 'wt-campaign', status: 'st-mkt-content',
+    assignee: 'u-kavya', priority: 'urgent', due: 3, labels: ['lbl-campaign', 'lbl-urgent'],
+    desc: 'The whole launch-week sequence. Nothing ships until payments is demonstrably working.',
+    createdDaysAgo: 12, updatedMinutesAgo: 140,
+  },
+  {
+    n: 61, title: 'Pricing page rebuild', dept: 'dept-marketing', type: 'wt-task', status: 'st-mkt-planning',
+    assignee: 'u-rohan', priority: 'high', due: 11, labels: ['lbl-campaign'],
+    desc: 'New pricing tiers on the site. Blocked on the billing model being settled.',
+    createdDaysAgo: 10, updatedMinutesAgo: 900,
+  },
+  {
+    n: 190, title: 'Litware — security questionnaire', dept: 'dept-sales', type: 'wt-opportunity', status: 'st-sls-negotiation',
+    assignee: 'u-neha', priority: 'urgent', due: 2, labels: ['lbl-enterprise', 'lbl-customer'],
+    desc: 'Two hundred questions from Litware procurement. Several answers depend on the secrets rotation runbook existing.',
+    cf: { 'cf-deal-size': 180000, 'cf-customer': 'Litware' },
+    createdDaysAgo: 16, updatedMinutesAgo: 320,
+  },
+  {
+    n: 191, title: 'Northwind — expansion contract', dept: 'dept-sales', type: 'wt-opportunity', status: 'st-sls-proposal',
+    assignee: 'u-manish', priority: 'high', due: 6, labels: ['lbl-customer', 'lbl-enterprise'],
+    desc: 'Doubling Northwind\u2019s seats, contingent on the payments work landing this quarter.',
+    cf: { 'cf-deal-size': 240000, 'cf-customer': 'Northwind Traders' },
+    createdDaysAgo: 20, updatedMinutesAgo: 480,
+  },
+]
+
+/* ------------------------------------------------------------------ *
  * Other departments — generated from curated titles
  * ------------------------------------------------------------------ */
 
@@ -171,19 +224,31 @@ interface GenSpec {
   types: string[]
   labels: string[]
   startNumber: number
+  /**
+   * Fraction of this department's items pinned to its first (backlog)
+   * status. Left to a uniform draw across six statuses, a department
+   * ends up with three or four backlog items — too thin for its head to
+   * have anything to bring to the huddle.
+   */
+  backlogShare: number
 }
 
 const GENERATED: GenSpec[] = [
   {
     dept: 'dept-product',
     startNumber: 40,
+    backlogShare: 0.38,
     titles: [
       'Onboarding funnel research', 'Pricing page experiment', 'Usage-based billing definition',
       'Customer interview round 3', 'Activation metric definition', 'Enterprise SSO requirements',
       'Mobile roadmap Q4', 'Churn driver analysis', 'In-product guidance spec',
       'Reporting module discovery', 'Data retention policy', 'Partner API scoping',
       'Trial length experiment', 'Competitive teardown', 'Accessibility commitments',
-      'Self-serve upgrade flow',
+      'Self-serve upgrade flow', 'Usage analytics event taxonomy', 'Team invitation flow',
+      'Workspace templates', 'Notification digest design', 'Admin audit surface',
+      'Guest access model', 'Bulk import from CSV', 'Saved view sharing',
+      'Onboarding checklist rework', 'Seat forecasting model', 'Deprecation comms plan',
+      'Search results relevance study',
     ],
     statusIds: ['st-prd-discovery', 'st-prd-defined', 'st-prd-design', 'st-prd-build', 'st-prd-validation', 'st-prd-shipped'],
     assignees: ['u-aditya', 'u-sneha', 'u-vivek', 'u-tanya', 'u-priya'],
@@ -193,13 +258,17 @@ const GENERATED: GenSpec[] = [
   {
     dept: 'dept-marketing',
     startNumber: 70,
+    backlogShare: 0.42,
     titles: [
       'Q4 product launch campaign', 'Customer story: Northwind', 'Webinar: payments deep dive',
       'Paid search refresh', 'Brand refresh phase 2', 'Developer newsletter revamp',
       'Conference booth design', 'SEO content cluster: workflows', 'Lifecycle email sequence',
       'Analyst briefing deck', 'Social calendar for launch week', 'Partner co-marketing brief',
       'Pricing page copy rewrite', 'Case study video', 'Community AMA series',
-      'Retargeting audience rebuild',
+      'Retargeting audience rebuild', 'Docs site information architecture', 'Changelog relaunch',
+      'Customer advisory board invites', 'Podcast sponsorship test', 'Comparison page: alternatives',
+      'Onboarding email rewrite', 'Regional campaign: APAC', 'Referral programme design',
+      'Testimonial collection drive', 'Event follow-up sequence', 'Brand photography refresh',
     ],
     statusIds: ['st-mkt-ideas', 'st-mkt-planning', 'st-mkt-content', 'st-mkt-review', 'st-mkt-scheduled', 'st-mkt-published'],
     assignees: ['u-rohan', 'u-kavya', 'u-ishaan', 'u-tara', 'u-deepak', 'u-anjali'],
@@ -209,12 +278,19 @@ const GENERATED: GenSpec[] = [
   {
     dept: 'dept-sales',
     startNumber: 200,
+    backlogShare: 0.34,
     titles: [
       'Northwind Traders — platform expansion', 'Contoso — enterprise renewal', 'Fabrikam — pilot to production',
       'Tailspin Toys — new logo', 'Adventure Works — seat expansion', 'Litware — security review',
       'Proseware — procurement', 'Wingtip — migration scoping', 'Fourth Coffee — annual contract',
       'Graphic Design Institute — pilot', 'Woodgrove Bank — compliance pack', 'Lucerne Publishing — upsell',
       'Trey Research — technical evaluation', 'Alpine Ski House — renewal at risk',
+      'Blue Yonder Airlines — RFP response', 'City Power — multi-year agreement',
+      'Coho Vineyard — pilot expansion', 'Humongous Insurance — security questionnaire',
+      'Margie\u2019s Travel — new logo', 'Nod Publishers — renewal', 'Southridge Video — upsell',
+      'Tailwind Traders — platform migration', 'VanArsdel — procurement review',
+      'Relecloud — technical evaluation', 'Fourth Coffee — regional rollout',
+      'Contoso Pharmaceuticals — compliance pack',
     ],
     statusIds: ['st-sls-lead', 'st-sls-qualified', 'st-sls-proposal', 'st-sls-negotiation', 'st-sls-won', 'st-sls-lost'],
     assignees: ['u-manish', 'u-ritu', 'u-gaurav', 'u-neha', 'u-suresh'],
@@ -231,7 +307,8 @@ function generateSpecs(): ItemSpec[] {
 
   for (const gen of GENERATED) {
     gen.titles.forEach((title, index) => {
-      const status = pick(random, gen.statusIds)
+      const backlogStatus = gen.statusIds[0]!
+      const status = random() < gen.backlogShare ? backlogStatus : pick(random, gen.statusIds)
       const isFinal = status === gen.statusIds[gen.statusIds.length - 1]
       const dueOffset = Math.floor(random() * 34) - 8
 
@@ -300,7 +377,7 @@ function impliedStartOffset(spec: ItemSpec, index: number): number | undefined {
 }
 
 export function buildWorkSeed(now: Date): WorkSeed {
-  const specs = [...ENGINEERING, ...generateSpecs()]
+  const specs = [...ENGINEERING, ...ANCHORS, ...generateSpecs()]
 
   const workItems: WorkItem[] = []
   const checklists: Checklist[] = []
@@ -388,6 +465,18 @@ export function buildWorkSeed(now: Date): WorkSeed {
     dep('wi-eng-157', 'wi-eng-141', 'parent-of', 3),
     dep('wi-eng-157', 'wi-eng-138', 'parent-of', 3),
     dep('wi-eng-153', 'wi-eng-118', 'related-to', 5),
+
+    /* Cross-department. The most useful thing a leadership meeting
+       surfaces is one department waiting on another, and these are what
+       make the Product, Marketing and Sales heads have something to
+       raise that Engineering can actually act on. */
+    dep('wi-pro-30', 'wi-eng-120', 'blocked-by', 11, 'u-sneha'),
+    dep('wi-pro-31', 'wi-eng-143', 'blocked-by', 9, 'u-aditya'),
+    dep('wi-mar-60', 'wi-eng-124', 'blocked-by', 8, 'u-kavya'),
+    dep('wi-mar-61', 'wi-pro-30', 'blocked-by', 7, 'u-rohan'),
+    dep('wi-sal-190', 'wi-eng-143', 'blocked-by', 10, 'u-neha'),
+    dep('wi-sal-191', 'wi-eng-124', 'depends-on', 12, 'u-manish'),
+    dep('wi-pro-30', 'wi-eng-117', 'related-to', 9, 'u-sneha'),
   ]
 
   /* --- Manual blockers (§33 "Add blocker") ----------------------- */
@@ -407,6 +496,33 @@ export function buildWorkSeed(now: Date): WorkSeed {
       reason: 'Needs a dedicated CI runner before the tests can be isolated',
       createdAt: isoDaysFromNow(now, -2, 11),
       createdBy: 'u-divya',
+      resolvedAt: null,
+      resolvedBy: null,
+    },
+    {
+      id: 'blk-mkt-60-legal',
+      workItemId: 'wi-mar-60',
+      reason: 'Legal has not signed off the launch claims',
+      createdAt: isoDaysFromNow(now, -2, 15),
+      createdBy: 'u-rohan',
+      resolvedAt: null,
+      resolvedBy: null,
+    },
+    {
+      id: 'blk-sal-190-security',
+      workItemId: 'wi-sal-190',
+      reason: 'Needs a completed SOC 2 summary before procurement will proceed',
+      createdAt: isoDaysFromNow(now, -4, 9),
+      createdBy: 'u-neha',
+      resolvedAt: null,
+      resolvedBy: null,
+    },
+    {
+      id: 'blk-pro-31-review',
+      workItemId: 'wi-pro-31',
+      reason: 'Waiting on the security review slot to open up',
+      createdAt: isoDaysFromNow(now, -3, 12),
+      createdBy: 'u-aditya',
       resolvedAt: null,
       resolvedBy: null,
     },

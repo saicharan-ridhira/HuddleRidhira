@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils'
 const REASON_LABEL: Record<AttentionReason, string> = {
   blocked: 'Blocked',
   'blocking-others': 'Holding up work',
+  backlog: 'Not started',
   overdue: 'Overdue',
   'due-today': 'Due today',
   'high-priority': 'High priority',
@@ -111,6 +112,7 @@ export function HuddleWorkRow({
                 'inline-flex h-4 items-center rounded border px-1 text-[10px] font-medium',
                 reason === 'overdue' && 'border-overdue-border bg-overdue-muted text-overdue',
                 reason === 'blocking-others' && 'border-overdue-border bg-overdue-muted text-overdue',
+                reason === 'backlog' && 'border-border bg-muted text-muted-foreground',
                 reason === 'due-today' && 'border-border bg-muted text-foreground',
                 reason === 'high-priority' && 'border-border bg-muted text-muted-foreground',
               )}
@@ -131,7 +133,7 @@ export function HuddleWorkRow({
       {blocked && details.length > 0 && (
         <ul className="flex flex-col gap-0.5 pl-0.5 text-[11px] text-muted-foreground">
           {details.map((detail, index) => (
-            <li key={index}>Waiting for {detail.reason}</li>
+            <li key={index}>{detail.label}</li>
           ))}
         </ul>
       )}

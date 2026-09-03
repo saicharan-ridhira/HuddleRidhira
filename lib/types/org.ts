@@ -1,5 +1,26 @@
 import type { Hue, Id, ISODate, ViewLayout } from './primitives'
 
+export type HuddleCadence = 'daily' | 'weekdays' | 'weekly' | 'none'
+
+/**
+ * There is exactly one huddle — the heads-of-department meeting — so its
+ * configuration belongs to the organization rather than to any single
+ * department.
+ */
+export interface HuddleConfig {
+  cadence: HuddleCadence
+  /** 24h "HH:mm" */
+  time: string
+  /**
+   * How many backlog items surface per department before the rest is
+   * hidden behind "show all". Blockers are never capped: there are few
+   * of them and each one is a real problem. Backlog is capped because a
+   * department can easily carry thirty items nobody has started, and
+   * listing them all turns the meeting back into a database browse.
+   */
+  backlogLimit: number
+}
+
 export interface Organization {
   id: Id
   name: string
@@ -8,6 +29,7 @@ export interface Organization {
   initials: string
   hue: Hue
   createdAt: ISODate
+  huddle: HuddleConfig
 }
 
 export interface User {
@@ -65,8 +87,6 @@ export interface Role {
   rank: number
 }
 
-export type HuddleCadence = 'daily' | 'weekdays' | 'weekly' | 'none'
-
 /** PRD §38 — a department is a workspace with its own defaults. */
 export interface Department {
   id: Id
@@ -79,13 +99,10 @@ export interface Department {
   workflowId: Id
   defaultView: ViewLayout
   memberIds: Id[]
+  /**
+   * The head of department — who speaks for this department in the
+   * huddle. A department without one cannot take part, so this is not
+   * decorative.
+   */
   leadId: Id
-  huddle: {
-    cadence: HuddleCadence
-    /** 24h "HH:mm" */
-    time: string
-    groupBy: 'assignee' | 'status' | 'priority'
-    /** How many items surface per person before "show all" (§31). */
-    discussionLimit: number
-  }
 }

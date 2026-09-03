@@ -127,7 +127,7 @@ function DrawerBody({ itemId }: { itemId: string }) {
             {blocked && details.length > 0 && (
               <ul className="flex flex-col gap-0.5 text-[12px] text-muted-foreground">
                 {details.map((detail, index) => (
-                  <li key={index}>Waiting for {detail.reason}</li>
+                  <li key={index}>{detail.label}</li>
                 ))}
               </ul>
             )}

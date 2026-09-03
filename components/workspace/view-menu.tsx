@@ -235,9 +235,6 @@ export function WorkspaceOverflow({ departmentId, departmentSlug }: { department
         <DropdownMenuItem onSelect={() => router.push(`/departments/${departmentSlug}/members`)}>
           Members
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => router.push(`/departments/${departmentSlug}/huddle/history`)}>
-          Huddle history
-        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => router.push('/settings/departments')}>Department settings</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => router.push('/settings/workflows')}>Workflow</DropdownMenuItem>

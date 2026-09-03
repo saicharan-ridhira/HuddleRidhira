@@ -1,6 +1,5 @@
 /**
- * End-to-end walk of the golden path (PRD §53), asserted rather than
- * eyeballed. It is not part of CI — CI has no browser — but it is the
+ * End-to-end walk of the golden path, asserted rather than eyeballed. It is not part of CI — CI has no browser — but it is the
  * fastest way to confirm the demo still works after a change.
  *
  *   npm run dev                       # in one terminal
@@ -33,54 +32,64 @@ await step('sign in', async () => {
   await page.waitForURL('**/dashboard')
 })
 
-// 2. Engineering huddle
-await step('open huddle', async () => {
-  await page.goto('http://localhost:3000/departments/engineering/huddle', { waitUntil: 'networkidle' })
-  await page.getByRole('button', { name: /Start Engineering huddle/ }).click()
-  await page.waitForTimeout(500)
+// 2. The leadership huddle
+await step('open the huddle', async () => {
+  await page.goto('http://localhost:3000/huddle', { waitUntil: 'networkidle' })
+  await page.getByRole('button', { name: /Start the leadership huddle/ }).click()
+  await page.waitForTimeout(600)
 })
 
-// 3. Attendance: mark Karthik absent
-await step('mark Karthik absent', async () => {
-  await page.getByRole('button', { name: /Karthik Iyer/ }).click()
+// 3. Attendance is by department, each spoken for by its head
+await step('every department is listed with its head', async () => {
+  const text = await page.locator('main').innerText()
+  for (const department of ['Engineering', 'Product', 'Marketing', 'Sales']) {
+    if (!text.includes(department)) throw new Error('missing department: ' + department)
+  }
+  if (!/4 \/ 4 present/.test(text)) throw new Error('expected 4 / 4 present, got ' + text.match(/\d+ \/ \d+ present/))
+})
+
+await step('mark Sales absent', async () => {
+  await page.locator('button', { hasText: 'Sales' }).first().click()
   await page.waitForTimeout(300)
-  const text = await page.locator('text=/\\d+ \\/ \\d+ present/').first().innerText()
-  if (!text.includes('9 / 10')) throw new Error('expected 9 / 10 present, got ' + text)
+  const text = await page.locator('main').innerText()
+  if (!/3 \/ 4 present/.test(text)) throw new Error('expected 3 / 4 present, got ' + text.match(/\d+ \/ \d+ present/))
 })
 await page.screenshot({ path: `${OUT}/gp-1-attendance.png` })
 
 // 4. Start
-await step('start huddle', async () => {
+await step('start the review', async () => {
   await page.getByRole('button', { name: 'Start huddle', exact: true }).click()
-  await page.waitForTimeout(600)
+  await page.waitForTimeout(700)
 })
 
-// 5. Sai: 3 things to discuss
-await step('Sai shows 3 things to discuss', async () => {
-  const heading = await page.locator('h3', { hasText: 'to discuss' }).first().innerText()
-  if (!heading.startsWith('3 things')) throw new Error('expected "3 things to discuss", got: ' + heading)
-  const total = await page.locator('text=/\\d+ items in total/').first().innerText()
-  if (!total.startsWith('23 ')) throw new Error('expected 23 items in total, got ' + total)
+// 5. Engineering leads, with blockers and backlog
+await step('Engineering is reviewed first, blockers then backlog', async () => {
+  const text = await page.locator('main').innerText()
+  if (!text.includes('Engineering')) throw new Error('not reviewing Engineering')
+  if (!/\d+ things? to discuss/.test(text)) throw new Error('no discussion headline')
+  if (!/\d+ blocked · \d+ in backlog · \d+ items in total/.test(text)) throw new Error('no agenda breakdown')
 })
-await page.screenshot({ path: `${OUT}/gp-2-sai.png` })
+await page.screenshot({ path: `${OUT}/gp-2-engineering.png` })
 
-// 6. Show all expander
-await step('show all 23 expands', async () => {
-  await page.getByRole('button', { name: /Show all 23 item/ }).click()
-  await page.waitForTimeout(400)
-  await page.getByRole('button', { name: 'Show fewer' }).click()
+await step('backlog is capped, with the rest one click away', async () => {
+  const more = page.getByRole('button', { name: /Show \d+ more backlog item/ })
+  if ((await more.count()) === 0) throw new Error('backlog was not capped')
+  await more.first().click()
   await page.waitForTimeout(300)
+  await page.getByRole('button', { name: 'Show fewer' }).click()
+  await page.waitForTimeout(200)
 })
 
-// 7. Payment API is blocked and selected
-await step('Payment API shows blocked + waiting reason', async () => {
-  const panel = page.locator('aside').last()
-  const txt = await panel.innerText()
-  if (!/Payment API/.test(txt)) throw new Error('discussion panel not showing Payment API: ' + txt.slice(0, 200))
-  if (!/Waiting for ENG-120/.test(txt)) throw new Error('no ENG-120 waiting reason: ' + txt.slice(0, 300))
+// 6. Payment API is blocked and selected
+await step('Payment API shows blocked and names what it waits for', async () => {
+  await page.locator('div[role="button"]', { hasText: 'Payment API' }).first().click()
+  await page.waitForTimeout(400)
+  const panel = await page.locator('aside').last().innerText()
+  if (!/Payment API/.test(panel)) throw new Error('discussion panel not on Payment API')
+  if (!/Waiting for ENG-120/.test(panel)) throw new Error('no ENG-120 waiting reason: ' + panel.slice(0, 300))
 })
 
-// 8. Record why + decision
+// 7. Record why + decision
 await step('record why and decision', async () => {
   const panel = page.locator('aside').last()
   await panel.getByPlaceholder('Waiting for Finance credentials.').fill('Provider has not issued production credentials yet.')
@@ -89,8 +98,8 @@ await step('record why and decision', async () => {
   await page.waitForTimeout(400)
 })
 
-// 9. Create an action
-await step('create action', async () => {
+// 8. Create an action
+await step('create an action', async () => {
   const panel = page.locator('aside').last()
   await panel.getByPlaceholder('Follow up with Finance at 2pm').fill('Follow up with Finance at 2pm')
   await panel.getByRole('button', { name: 'Add', exact: true }).click()
@@ -98,31 +107,51 @@ await step('create action', async () => {
 })
 await page.screenshot({ path: `${OUT}/gp-3-discussion.png` })
 
-// 10. THE MOMENT: set ENG-120 to Done from inside the huddle, watch ENG-124 unblock
-await step('open ENG-120 via dependency panel', async () => {
+// 9. THE MOMENT: mark the blocker Done, watch the cascade
+await step('open ENG-120 from the dependency panel', async () => {
   const panel = page.locator('aside').last()
   await panel.locator('button', { hasText: 'ENG-120' }).first().click()
   await page.waitForTimeout(700)
 })
 
-await step('set ENG-120 Done in the drawer', async () => {
+await step('set ENG-120 to Done', async () => {
   const drawer = page.locator('[data-slot="sheet-content"]')
   await drawer.getByRole('button', { name: /^Status:/ }).click()
   await page.waitForTimeout(300)
-  await page.getByRole('option', { name: 'Done' }).click().catch(async () => {
-    await page.locator('[data-slot="command-item"]', { hasText: 'Done' }).first().click()
-  })
+  await page.locator('[data-slot="command-item"]', { hasText: 'Done' }).first().click()
   await page.waitForTimeout(600)
   await page.keyboard.press('Escape')
   await page.waitForTimeout(500)
 })
 
-await step('ENG-124 is now unblocked in the huddle', async () => {
+await step('ENG-124 is now unblocked, in place', async () => {
   const body = await page.locator('main').innerText()
-  if (/Waiting for ENG-120/.test(body)) throw new Error('ENG-124 still shows as waiting for ENG-120')
-  if (!/Unblocked/.test(body)) throw new Error('no Unblocked state shown after resolving ENG-120')
+  if (/Waiting for ENG-120/.test(body)) throw new Error('ENG-124 still waiting on ENG-120')
+  if (!/Unblocked/.test(body)) throw new Error('no Unblocked state after resolving ENG-120')
 })
 await page.screenshot({ path: `${OUT}/gp-4-unblocked.png` })
+
+// 10. Walk the remaining departments and finish
+await step('walk the remaining departments to the summary', async () => {
+  for (let index = 0; index < 4; index += 1) {
+    const finish = page.getByRole('button', { name: /Finish/ })
+    if ((await finish.count()) > 0) {
+      await finish.click()
+      break
+    }
+    await page.getByRole('button', { name: /^Next/ }).click()
+    await page.waitForTimeout(500)
+  }
+  await page.waitForTimeout(700)
+  const text = await page.locator('main').innerText()
+  if (!/Leadership Huddle/.test(text)) throw new Error('not on the summary')
+  // Case-insensitive: these headings are uppercased in CSS, so innerText
+  // returns them shouting.
+  if (!/actions/i.test(text)) throw new Error('summary has no actions section')
+  if (!/follow up with finance/i.test(text)) throw new Error('the action created earlier is missing from the summary')
+  if (!/decisions/i.test(text)) throw new Error('summary has no decisions section')
+})
+await page.screenshot({ path: `${OUT}/gp-5-summary.png` })
 
 console.log(errors.length ? '\nERRORS:\n' + errors.slice(0, 8).join('\n') : '\nno console errors')
 await browser.close()

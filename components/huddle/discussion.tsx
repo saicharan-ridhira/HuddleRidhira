@@ -27,12 +27,12 @@ import { toast } from 'sonner'
 export function Discussion({
   huddle,
   item,
-  subjectUserId,
+  subjectDepartmentId,
   ctx,
 }: {
   huddle: Huddle
   item: WorkItem
-  subjectUserId: Id
+  subjectDepartmentId: Id
   ctx: EngineContext
 }) {
   const existing = useMemo(
@@ -48,7 +48,11 @@ export function Discussion({
   const [why, setWhy] = useState(existing?.why ?? '')
   const [decision, setDecision] = useState(existing?.decision ?? '')
   const [actionText, setActionText] = useState('')
-  const [ownerId, setOwnerId] = useState<Id>(item.assigneeId ?? subjectUserId)
+  // Default the action owner to whoever holds the item, falling back to
+  // the head of the department whose turn it is — they own it by default
+  // when nobody else does.
+  const departmentHead = ctx.departments[subjectDepartmentId]?.leadId ?? ''
+  const [ownerId, setOwnerId] = useState<Id>(item.assigneeId ?? departmentHead)
   const [dueOffset, setDueOffset] = useState('0')
 
   // Switching item resets the form to whatever was already recorded for
@@ -60,20 +64,22 @@ export function Discussion({
     setWhy(existing?.why ?? '')
     setDecision(existing?.decision ?? '')
     setActionText('')
-    setOwnerId(item.assigneeId ?? subjectUserId)
+    setOwnerId(item.assigneeId ?? departmentHead)
     setDueOffset('0')
   }
 
   const blocked = isBlocked(item.id, ctx)
   const details = blockDetails(item.id, ctx)
   const justUnblocked = !blocked && hasResolvedDependencies(item.id, ctx)
-  const department = ctx.departments[item.departmentId]
-  const members = (department?.memberIds ?? []).map((id) => ctx.users[id]!).filter(Boolean)
+  // A leadership huddle routinely assigns an action to another
+  // department's head, so the owner list is the whole organization
+  // rather than one department's members.
+  const members = Object.values(ctx.users)
 
   const save = () => {
     huddleService.recordDiscussion(huddle.id, {
       workItemId: item.id,
-      subjectUserId,
+      subjectDepartmentId,
       why: why.trim(),
       decision: decision.trim(),
     })
@@ -110,7 +116,7 @@ export function Discussion({
         {blocked && details.length > 0 && (
           <ul className="flex flex-col gap-0.5 text-[12px] text-muted-foreground">
             {details.map((detail, index) => (
-              <li key={index}>Waiting for {detail.reason}</li>
+              <li key={index}>{detail.label}</li>
             ))}
           </ul>
         )}

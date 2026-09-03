@@ -14,10 +14,16 @@ import type {
  * Organizations
  * ------------------------------------------------------------------ */
 
+const DEFAULT_HUDDLE: Organization['huddle'] = {
+  cadence: 'weekdays',
+  time: '09:30',
+  backlogLimit: 3,
+}
+
 export const organizations: Organization[] = [
-  { id: 'org-acme', name: 'Acme Corp', slug: 'acme', initials: 'AC', hue: 'indigo', createdAt: '2024-01-15T09:00:00.000Z' },
-  { id: 'org-labs', name: 'Acme Labs', slug: 'acme-labs', initials: 'AL', hue: 'teal', createdAt: '2024-06-02T09:00:00.000Z' },
-  { id: 'org-ventures', name: 'Acme Ventures', slug: 'acme-ventures', initials: 'AV', hue: 'amber', createdAt: '2025-02-11T09:00:00.000Z' },
+  { id: 'org-acme', name: 'Acme Corp', slug: 'acme', initials: 'AC', hue: 'indigo', createdAt: '2024-01-15T09:00:00.000Z', huddle: { ...DEFAULT_HUDDLE } },
+  { id: 'org-labs', name: 'Acme Labs', slug: 'acme-labs', initials: 'AL', hue: 'teal', createdAt: '2024-06-02T09:00:00.000Z', huddle: { ...DEFAULT_HUDDLE, cadence: 'weekly', time: '11:00' } },
+  { id: 'org-ventures', name: 'Acme Ventures', slug: 'acme-ventures', initials: 'AV', hue: 'amber', createdAt: '2025-02-11T09:00:00.000Z', huddle: { ...DEFAULT_HUDDLE, cadence: 'none' } },
 ]
 
 /* ------------------------------------------------------------------ *
@@ -219,7 +225,6 @@ export const departments: Department[] = [
     defaultView: 'board',
     memberIds: engineeringMembers,
     leadId: 'u-sai',
-    huddle: { cadence: 'daily', time: '09:30', groupBy: 'assignee', discussionLimit: 3 },
   },
   {
     id: 'dept-product',
@@ -232,7 +237,6 @@ export const departments: Department[] = [
     defaultView: 'board',
     memberIds: ['u-aditya', 'u-sneha', 'u-vivek', 'u-tanya', 'u-priya', 'u-sai'],
     leadId: 'u-aditya',
-    huddle: { cadence: 'weekdays', time: '10:00', groupBy: 'assignee', discussionLimit: 3 },
   },
   {
     id: 'dept-marketing',
@@ -245,7 +249,6 @@ export const departments: Department[] = [
     defaultView: 'board',
     memberIds: ['u-rohan', 'u-kavya', 'u-ishaan', 'u-tara', 'u-deepak', 'u-anjali'],
     leadId: 'u-rohan',
-    huddle: { cadence: 'weekly', time: '11:00', groupBy: 'assignee', discussionLimit: 3 },
   },
   {
     id: 'dept-sales',
@@ -258,7 +261,6 @@ export const departments: Department[] = [
     defaultView: 'list',
     memberIds: ['u-manish', 'u-ritu', 'u-gaurav', 'u-neha', 'u-suresh'],
     leadId: 'u-manish',
-    huddle: { cadence: 'daily', time: '09:00', groupBy: 'assignee', discussionLimit: 4 },
   },
 ]
 

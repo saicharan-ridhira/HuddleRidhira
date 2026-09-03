@@ -138,6 +138,31 @@ export function addBlocker(itemId: Id, reason: string) {
   })
 }
 
+export function updateBlockerReason(blockerId: Id, reason: string) {
+  apply((state) => {
+    const blocker = state.entities.blockers[blockerId]
+    if (!blocker || !reason.trim()) return
+    blocker.reason = reason.trim()
+    const item = state.entities.workItems[blocker.workItemId]
+    return { kind: 'blocker', entityId: blockerId, summary: `reworded the blocker on ${item?.key ?? 'an item'}`, departmentId: item?.departmentId ?? null }
+  })
+}
+
+/**
+ * Removes a blocker outright, as opposed to resolving it. Use this when
+ * it was raised in error — resolving records that the obstacle was
+ * cleared, which is a different and usually truer thing to say.
+ */
+export function deleteBlocker(blockerId: Id) {
+  apply((state) => {
+    const blocker = state.entities.blockers[blockerId]
+    if (!blocker) return
+    const item = state.entities.workItems[blocker.workItemId]
+    delete state.entities.blockers[blockerId]
+    return { kind: 'blocker', entityId: blockerId, summary: `removed a blocker from ${item?.key ?? 'an item'}`, departmentId: item?.departmentId ?? null }
+  })
+}
+
 export function resolveBlocker(blockerId: Id, note?: string) {
   apply((state) => {
     const blocker = state.entities.blockers[blockerId]
