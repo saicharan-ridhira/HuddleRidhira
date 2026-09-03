@@ -73,7 +73,7 @@ Twenty steps, about eight minutes. This is the flow the prototype is built to ma
 - Huddle → they now appear in the roster, speaking for that department.
 - Settings → Members → remove them. The confirmation **names what happens to their work** before it happens, and lets you hand it to someone else rather than silently orphaning it.
 
-Also worth showing: `⌘K` (search and commands in one surface), and the theme toggle under your avatar.
+Also worth showing: `⌘K` (search and commands in one surface), `⌘\` to collapse the sidebar to an icon rail when a board or the scorecard grid wants the width, and the theme toggle under your avatar.
 
 ## Architecture
 

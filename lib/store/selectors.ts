@@ -232,6 +232,10 @@ export function useAuditEvents(limit = 100, departmentId?: Id) {
   )
 }
 
+export function useSidebarCollapsed(): boolean {
+  return useStore((state) => state.sidebarCollapsed)
+}
+
 export function useOpenWorkItemId() {
   return useStore((state) => state.openWorkItemId)
 }
