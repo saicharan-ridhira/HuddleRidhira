@@ -1,6 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import { WorkRow } from './work-row'
+import { ShowMore, visibleInGroup } from '@/components/shared/pagination'
 import { StatusIcon, PriorityIndicator, UserAvatar } from '@/components/primitives'
 import { useStore } from '@/lib/store/store'
 import { isBlocked } from '@/lib/engine/derive'
@@ -11,6 +13,11 @@ import { hueDot } from '@/lib/ui/tokens'
 /**
  * PRD §16 — the compact operational overview. Same pipeline output the
  * board consumes, laid out as grouped rows instead of columns.
+ *
+ * Long groups are capped rather than paginated. Page numbers across a
+ * grouped list put a break in the middle of a group — "Sai" appearing on
+ * both page 2 and page 3 reads as a bug — so the cap sits inside each
+ * group, where the user is already looking.
  */
 export function ListView({
   groups,
@@ -22,6 +29,7 @@ export function ListView({
   ctx: EngineContext
 }) {
   const openWorkItem = useStore((state) => state.openWorkItem)
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
   if (groups.every((group) => group.items.length === 0)) {
     return <EmptyState />
@@ -31,6 +39,8 @@ export function ListView({
     <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
       {groups.map((group) => {
         const blockedCount = group.items.filter((item) => isBlocked(item.id, ctx)).length
+        const isExpanded = expanded[group.key] ?? false
+        const { visible, hidden } = visibleInGroup(group.items, isExpanded)
 
         return (
           <section key={group.key}>
@@ -45,7 +55,7 @@ export function ListView({
               )}
             </header>
 
-            {group.items.map((item) => (
+            {visible.map((item) => (
               <WorkRow
                 key={item.id}
                 item={item}
@@ -55,6 +65,13 @@ export function ListView({
                 onOpen={openWorkItem}
               />
             ))}
+
+            <ShowMore
+              hidden={hidden}
+              expanded={isExpanded}
+              onToggle={() => setExpanded((previous) => ({ ...previous, [group.key]: !isExpanded }))}
+              noun="in this group"
+            />
           </section>
         )
       })}

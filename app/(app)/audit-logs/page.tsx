@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/dashboard/page-header'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { UserAvatar } from '@/components/primitives'
+import { Pagination, usePagination } from '@/components/shared/pagination'
 import { relativeTime } from '@/components/work/work-item-drawer'
 import { useAuditEvents, useDepartments, useEngineContext } from '@/lib/store/selectors'
 import { useStore } from '@/lib/store/store'
@@ -23,7 +24,9 @@ const KINDS: AuditEntityKind[] = [
  * surfaces where work actually happens.
  */
 export default function AuditLogsPage() {
-  const events = useAuditEvents(400)
+  // Unbounded: the log is the archive, and pagination is what makes it
+  // navigable. Capping the query would silently hide history.
+  const events = useAuditEvents(Number.MAX_SAFE_INTEGER)
   const ctx = useEngineContext()
   const departments = useDepartments()
   const openWorkItem = useStore((state) => state.openWorkItem)
@@ -45,11 +48,15 @@ export default function AuditLogsPage() {
     [events, kind, departmentId, query, ctx],
   )
 
+  const pagination = usePagination(filtered, 50)
+
   return (
     <>
       <PageHeader
         title="Audit logs"
-        description={`${filtered.length} event${filtered.length === 1 ? '' : 's'}`}
+        description={`${filtered.length} event${filtered.length === 1 ? '' : 's'}${
+          filtered.length === events.length ? '' : ` of ${events.length}`
+        }`}
         actions={
           <>
             <Input
@@ -90,7 +97,7 @@ export default function AuditLogsPage() {
 
       <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
         <ul className="mx-auto w-full max-w-4xl">
-          {filtered.map((event) => {
+          {pagination.items.map((event) => {
             const actor = ctx.users[event.actorId]
             const workItem = ctx.workItems[event.entityId]
 
@@ -135,6 +142,10 @@ export default function AuditLogsPage() {
             <li className="px-4 py-12 text-center text-[13px] text-muted-foreground">No events match that filter.</li>
           )}
         </ul>
+      </div>
+
+      <div className="mx-auto w-full max-w-4xl">
+        <Pagination state={pagination} itemLabel="events" />
       </div>
     </>
   )

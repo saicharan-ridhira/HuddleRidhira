@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/views/list-view'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { BlockedBadge, DueDate, StatusIcon, UserAvatar, WorkItemKey } from '@/components/primitives'
+import { Pagination, usePagination } from '@/components/shared/pagination'
 import { useAllWorkItems, useCurrentUser, useDepartments, useEngineContext } from '@/lib/store/selectors'
 import { useStore } from '@/lib/store/store'
 import { attentionOf, blockDetails, isBlocked, isOverdue } from '@/lib/engine/derive'
@@ -39,6 +40,8 @@ export default function BlockedPage() {
         .sort((a, b) => attentionOf(b, ctx).score - attentionOf(a, ctx).score),
     [items, ctx, scope, departmentId, currentUser],
   )
+
+  const pagination = usePagination(blocked, 25)
 
   return (
     <>
@@ -78,7 +81,7 @@ export default function BlockedPage() {
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 scrollbar-thin">
           <ul className="mx-auto flex w-full max-w-4xl flex-col gap-1.5">
-            {blocked.map((item) => {
+            {pagination.items.map((item) => {
               const status = ctx.statuses[item.statusId]
               const department = ctx.departments[item.departmentId]
               const details = blockDetails(item.id, ctx)
@@ -130,6 +133,12 @@ export default function BlockedPage() {
               )
             })}
           </ul>
+        </div>
+      )}
+
+      {blocked.length > 0 && (
+        <div className="mx-auto w-full max-w-4xl">
+          <Pagination state={pagination} itemLabel="blocked items" />
         </div>
       )}
     </>

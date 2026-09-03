@@ -57,6 +57,9 @@ function DrawerBody({ itemId }: { itemId: string }) {
   const item = ctx.workItems[itemId]
   const customFields = useCustomFields(item?.departmentId)
   const [comment, setComment] = useState('')
+  // Activity was hard-capped with no way past it, which quietly hid an
+  // item's history. Capped for scanning, expandable on demand.
+  const [showAllActivity, setShowAllActivity] = useState(false)
 
   const comments = useMemo(
     () =>
@@ -70,8 +73,7 @@ function DrawerBody({ itemId }: { itemId: string }) {
     () =>
       Object.values(ctx.auditEvents)
         .filter((event) => event.entityId === itemId)
-        .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
-        .slice(0, 12),
+        .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()),
     [ctx.auditEvents, itemId],
   )
 
@@ -276,7 +278,7 @@ function DrawerBody({ itemId }: { itemId: string }) {
             <p className="text-[12px] text-muted-foreground">Nothing recorded yet.</p>
           ) : (
             <ul className="flex flex-col gap-1.5">
-              {activity.map((event) => (
+              {(showAllActivity ? activity : activity.slice(0, 12)).map((event) => (
                 <li key={event.id} className="flex items-baseline gap-2 text-[12px]">
                   <span className="shrink-0 text-muted-foreground tabular-nums">{relativeTime(event.at, ctx.now)}</span>
                   <span className="min-w-0">
@@ -286,6 +288,17 @@ function DrawerBody({ itemId }: { itemId: string }) {
                 </li>
               ))}
             </ul>
+          )}
+
+          {activity.length > 12 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-1.5 w-fit text-muted-foreground"
+              onClick={() => setShowAllActivity((previous) => !previous)}
+            >
+              {showAllActivity ? 'Show fewer' : `Show all ${activity.length} events`}
+            </Button>
           )}
         </Section>
       </div>

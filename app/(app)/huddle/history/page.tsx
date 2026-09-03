@@ -5,6 +5,7 @@ import { CircleCheck, Radio, Trash2, Users } from 'lucide-react'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { Button } from '@/components/ui/button'
 import { DynamicIcon, UserAvatar, WorkItemKey } from '@/components/primitives'
+import { Pagination, usePagination } from '@/components/shared/pagination'
 import { useCurrentOrg, useEngineContext, useStoreHuddles } from '@/lib/store/selectors'
 import { huddleService } from '@/lib/services'
 import { hueStyle } from '@/lib/ui/tokens'
@@ -17,6 +18,10 @@ export default function HuddleHistoryPage() {
   const huddles = useStoreHuddles().filter(
     (huddle) => huddle.organizationId === organization?.id && huddle.stage === 'complete',
   )
+
+  // One huddle a day accumulates fast; the archive needs paging even
+  // though it looks short on day one.
+  const pagination = usePagination(huddles, 25)
 
   return (
     <>
@@ -41,7 +46,7 @@ export default function HuddleHistoryPage() {
             </p>
           )}
 
-          {huddles.map((huddle) => {
+          {pagination.items.map((huddle) => {
             const present = huddle.participants.filter((entry) => entry.attendance === 'present').length
             const actions = huddle.actionIds.map((id) => ctx.huddleActions[id]!).filter(Boolean)
             const discussions = huddle.discussionIds.map((id) => ctx.huddleDiscussions[id]!).filter(Boolean)
@@ -128,6 +133,12 @@ export default function HuddleHistoryPage() {
             )
           })}
         </div>
+
+        {huddles.length > 0 && (
+          <div className="mx-auto w-full max-w-3xl">
+            <Pagination state={pagination} itemLabel="huddles" />
+          </div>
+        )}
       </div>
     </>
   )
