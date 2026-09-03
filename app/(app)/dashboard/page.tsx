@@ -75,13 +75,22 @@ export default function DashboardPage() {
       departments.map((department) => {
         const deptItems = items.filter((item) => item.departmentId === department.id)
         const live = huddles.find((huddle) => huddle.departmentId === department.id && huddle.stage !== 'complete')
-        const present = live
-          ? live.participants.filter((entry) => entry.attendance === 'present').length
-          : department.memberIds.length
+        const lastComplete = huddles.find(
+          (huddle) => huddle.departmentId === department.id && huddle.stage === 'complete',
+        )
+
+        // Attendance is only a real number once a huddle has actually
+        // happened. Before that, showing "10/10 present" would be an
+        // invented statistic — the honest figure is the team's size.
+        const source = live ?? lastComplete
+        const attendance = source
+          ? { present: source.participants.filter((entry) => entry.attendance === 'present').length, live: Boolean(live) }
+          : null
+
         return {
           department,
           live,
-          present,
+          attendance,
           total: department.memberIds.length,
           blockers: deptItems.filter((item) => isBlocked(item.id, ctx)).length,
         }
@@ -89,13 +98,20 @@ export default function DashboardPage() {
     [departments, items, huddles, ctx],
   )
 
+  /** Average attendance across huddles that have actually been held. */
   const attendanceRate = useMemo(() => {
-    const totals = todaysHuddles.reduce(
-      (acc, entry) => ({ present: acc.present + entry.present, total: acc.total + entry.total }),
+    const held = huddles.filter((huddle) => huddle.stage === 'complete')
+    if (held.length === 0) return null
+
+    const totals = held.reduce(
+      (acc, huddle) => ({
+        present: acc.present + huddle.participants.filter((entry) => entry.attendance === 'present').length,
+        total: acc.total + huddle.participants.length,
+      }),
       { present: 0, total: 0 },
     )
-    return totals.total === 0 ? 0 : Math.round((totals.present / totals.total) * 100)
-  }, [todaysHuddles])
+    return totals.total === 0 ? null : Math.round((totals.present / totals.total) * 100)
+  }, [huddles])
 
   const greeting = (() => {
     const hour = ctx.now.getHours()
@@ -116,7 +132,11 @@ export default function DashboardPage() {
           {/* Quiet counters. The loud thing is below. */}
           <section className="grid grid-cols-2 gap-2 lg:grid-cols-4">
             <Counter icon={<Radio className="size-3.5" />} label="Huddles today" value={departments.length} />
-            <Counter icon={<Users className="size-3.5" />} label="Attendance" value={`${attendanceRate}%`} />
+            <Counter
+              icon={<Users className="size-3.5" />}
+              label="Attendance"
+              value={attendanceRate === null ? '—' : `${attendanceRate}%`}
+            />
             <Counter
               icon={<OctagonAlert className="size-3.5" />}
               label="Blockers"
@@ -164,7 +184,7 @@ export default function DashboardPage() {
             <section className="flex flex-col gap-2">
               <h2 className="text-[13px] font-semibold">Today&apos;s huddles</h2>
               <div className="flex flex-col gap-1">
-                {todaysHuddles.map(({ department, live, present, total, blockers }) => (
+                {todaysHuddles.map(({ department, live, attendance, total, blockers }) => (
                   <Link
                     key={department.id}
                     href={`/departments/${department.slug}/huddle`}
@@ -192,7 +212,13 @@ export default function DashboardPage() {
                     )}
 
                     <span className="shrink-0 text-[12px] tabular-nums text-muted-foreground">
-                      {present}/{total}
+                      {attendance ? (
+                        <>
+                          {attendance.present}/{total} {attendance.live ? 'present' : 'last time'}
+                        </>
+                      ) : (
+                        <>{total} people</>
+                      )}
                     </span>
 
                     {blockers > 0 ? (
