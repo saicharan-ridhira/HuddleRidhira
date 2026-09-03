@@ -168,6 +168,11 @@ export function useHuddle(huddleId: Id | null | undefined) {
   return useStore((state) => (huddleId ? state.entities.huddles[huddleId] : undefined))
 }
 
+/** Every huddle across the organization, newest first. */
+export function useStoreHuddles() {
+  return useStore(useShallow((state) => state.order.huddleIds.map((id) => state.entities.huddles[id]!).filter(Boolean)))
+}
+
 export function useHuddlesForDepartment(departmentId: Id | undefined) {
   return useStore(
     useShallow((state) =>

@@ -1,5 +1,5 @@
-'use client'
+import { redirect } from 'next/navigation'
 
-export default function Page() {
-  return <div className="p-6 text-sm text-muted-foreground">settings — coming in a later phase</div>
+export default function SettingsIndex() {
+  redirect('/settings/organization')
 }

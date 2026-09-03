@@ -10,6 +10,7 @@ import type {
   Permission,
   StatusCategory,
   ViewLayout,
+  WorkItemType,
 } from '@/lib/types'
 import { useStore, type AuditDraft, type StoreState } from '@/lib/store/store'
 import { newId } from '@/lib/utils/id'
@@ -309,6 +310,15 @@ export function createWorkItemType(name: string, icon: string, hue: Hue) {
     state.entities.workItemTypes[id] = { id, name, icon, hue, keyPrefix: name.slice(0, 1).toUpperCase() }
     state.order.workItemTypeIds.push(id)
     return { kind: 'work-item-type', entityId: id, summary: `created the ${name} work item type`, departmentId: null }
+  })
+}
+
+export function updateWorkItemType(typeId: Id, patch: Partial<Omit<WorkItemType, 'id'>>) {
+  apply((state) => {
+    const type = state.entities.workItemTypes[typeId]
+    if (!type) return
+    Object.assign(type, patch)
+    return { kind: 'work-item-type', entityId: typeId, summary: `updated the ${type.name} work item type`, departmentId: null }
   })
 }
 
