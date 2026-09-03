@@ -5,16 +5,7 @@ import { MessageSquare, Trash2 } from 'lucide-react'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Separator } from '@/components/ui/separator'
-import {
-  BlockedBadge,
-  DueDate,
-  StatusPill,
-  TypeIcon,
-  UnblockedBadge,
-  UserAvatar,
-  WorkItemKey,
-} from '@/components/primitives'
+import { BlockedBadge, DueDate, TypeIcon, UnblockedBadge, UserAvatar, WorkItemKey } from '@/components/primitives'
 import { EditableText } from './inline/editable-text'
 import { StatusPicker } from './inline/status-picker'
 import { PriorityPicker } from './inline/priority-picker'

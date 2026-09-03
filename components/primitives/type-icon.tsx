@@ -1,5 +1,6 @@
 'use client'
 
+import { createElement } from 'react'
 import {
   BookOpen,
   Bug,
@@ -49,18 +50,20 @@ export function resolveIcon(name: string | undefined): LucideIcon {
 }
 
 export function DynamicIcon({ name, className }: { name: string | undefined; className?: string }) {
-  const Icon = resolveIcon(name)
-  return <Icon className={cn('size-3.5 shrink-0', className)} aria-hidden />
+  // `createElement` rather than binding the icon to a capitalised local:
+  // assigning a component during render reads as creating one, which the
+  // React compiler rightly rejects.
+  return createElement(resolveIcon(name), {
+    className: cn('size-3.5 shrink-0', className),
+    'aria-hidden': true,
+  })
 }
 
 export function TypeIcon({ type, className }: { type: WorkItemType | undefined; className?: string }) {
   if (!type) return null
-  const Icon = resolveIcon(type.icon)
-  return (
-    <Icon
-      className={cn('size-3.5 shrink-0', className)}
-      style={{ color: `var(--hue-${type.hue})` }}
-      aria-label={type.name}
-    />
-  )
+  return createElement(resolveIcon(type.icon), {
+    className: cn('size-3.5 shrink-0', className),
+    style: { color: `var(--hue-${type.hue})` },
+    'aria-label': type.name,
+  })
 }

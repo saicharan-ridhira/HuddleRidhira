@@ -5,6 +5,11 @@ on:
     branches: ['**']
   pull_request:
 
+env:
+  # Playwright is a devDependency for the golden-path script, which CI does
+  # not run. Skipping the browser download keeps `npm ci` fast.
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
 jobs:
   verify:
     name: Typecheck · Lint · Test · Build

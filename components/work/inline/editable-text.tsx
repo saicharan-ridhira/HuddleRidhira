@@ -30,10 +30,15 @@ export function EditableText({
   const inputRef = useRef<HTMLTextAreaElement | HTMLInputElement>(null)
 
   // A change made elsewhere (a huddle action, the command palette)
-  // should show here immediately unless this field is being typed in.
-  useEffect(() => {
-    if (!editing) setDraft(value)
-  }, [value, editing])
+  // should show here immediately — unless this field is being typed in,
+  // which would throw away what the user is halfway through writing.
+  // Adjusting during render rather than in an effect avoids the extra
+  // commit and the flash of stale text that comes with it.
+  const [syncedValue, setSyncedValue] = useState(value)
+  if (value !== syncedValue && !editing) {
+    setSyncedValue(value)
+    setDraft(value)
+  }
 
   useEffect(() => {
     if (editing) {
