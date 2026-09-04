@@ -42,6 +42,12 @@ export interface StoreState {
   activeHuddleId: Id | null
   /** Which work item the detail drawer is showing. */
   openWorkItemId: Id | null
+  /**
+   * Whether the primary navigation is reduced to an icon rail. Persisted,
+   * because someone who wants the width back does not want to ask for it
+   * again on every page load.
+   */
+  sidebarCollapsed: boolean
   hydrated: boolean
 }
 
@@ -59,6 +65,8 @@ export interface StoreActions {
   setWorkingView: (departmentId: Id, patch: Partial<ViewConfig>) => void
   replaceWorkingView: (departmentId: Id, config: ViewConfig) => void
   openWorkItem: (id: Id | null) => void
+  setSidebarCollapsed: (collapsed: boolean) => void
+  toggleSidebar: () => void
   resetDemoData: () => void
   markHydrated: () => void
 }
@@ -133,6 +141,7 @@ const initialState = (): StoreState => ({
   workingViews: {},
   activeHuddleId: null,
   openWorkItemId: null,
+  sidebarCollapsed: false,
   hydrated: false,
 })
 
@@ -186,6 +195,18 @@ export const useStore = create<Store>()(
           state.openWorkItemId = id
         }),
 
+      // Not routed through `apply`: this is a preference about looking at
+      // the app, not a change to anything the audit log is about.
+      setSidebarCollapsed: (collapsed) =>
+        set((state) => {
+          state.sidebarCollapsed = collapsed
+        }),
+
+      toggleSidebar: () =>
+        set((state) => {
+          state.sidebarCollapsed = !state.sidebarCollapsed
+        }),
+
       resetDemoData: () =>
         set((state) => {
           const seed = createSeed(new Date())
@@ -209,12 +230,13 @@ export const useStore = create<Store>()(
       storage: createJSONStorage(() => localStorage),
       migrate: migratePersisted,
       skipHydration: true,
-      partialize: ({ entities, order, session, workingViews, activeHuddleId }) => ({
+      partialize: ({ entities, order, session, workingViews, activeHuddleId, sidebarCollapsed }) => ({
         entities,
         order,
         session,
         workingViews,
         activeHuddleId,
+        sidebarCollapsed,
       }),
     },
   ),

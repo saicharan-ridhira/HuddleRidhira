@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   ListTodo,
   OctagonAlert,
+  PanelLeft,
   Plus,
   RotateCcw,
   ScrollText,
@@ -25,7 +26,14 @@ import {
 } from '@/components/ui/command'
 import { BlockedBadge, DynamicIcon, StatusIcon, UserAvatar, WorkItemKey } from '@/components/primitives'
 import { isBlocked } from '@/lib/engine/derive'
-import { useAllWorkItems, useDepartments, useEngineContext, useUsers } from '@/lib/store/selectors'
+import {
+  useAllWorkItems,
+  useCurrentOrg,
+  useDepartments,
+  useEngineContext,
+  useSidebarCollapsed,
+  useUsers,
+} from '@/lib/store/selectors'
 import { useStore } from '@/lib/store/store'
 import { huddleService } from '@/lib/services'
 import { toast } from 'sonner'
@@ -63,6 +71,13 @@ export function CommandMenuProvider({ children }: { children: React.ReactNode })
       if (event.key === 'k' && (event.metaKey || event.ctrlKey)) {
         event.preventDefault()
         setIsOpen((previous) => !previous)
+        return
+      }
+      // The convention every editor and every tool of this shape uses,
+      // so it is already in people's hands before anyone tells them.
+      if (event.key === '\\' && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault()
+        useStore.getState().toggleSidebar()
       }
     }
     document.addEventListener('keydown', onKeyDown)
@@ -83,6 +98,8 @@ function CommandMenu({ open, onOpenChange }: { open: boolean; onOpenChange: (ope
   const users = useUsers()
   const workItems = useAllWorkItems()
   const ctx = useEngineContext()
+  const organization = useCurrentOrg()
+  const sidebarCollapsed = useSidebarCollapsed()
   const openWorkItem = useStore((state) => state.openWorkItem)
   const resetDemoData = useStore((state) => state.resetDemoData)
 
@@ -123,21 +140,27 @@ function CommandMenu({ open, onOpenChange }: { open: boolean; onOpenChange: (ope
             <Plus />
             Create work item
           </CommandItem>
-          {departments.map((department) => (
-            <CommandItem
-              key={`huddle-${department.id}`}
-              value={`start huddle ${department.name}`}
-              onSelect={() =>
-                run(() => {
-                  huddleService.openHuddle(department.id)
-                  router.push(`/departments/${department.slug}/huddle`)
-                })
-              }
-            >
-              <Users />
-              Start {department.name} huddle
-            </CommandItem>
-          ))}
+          {/* One huddle, organization-wide, between heads of department —
+              so one command, not one per department. */}
+          <CommandItem
+            value="start the leadership huddle"
+            onSelect={() =>
+              run(() => {
+                if (organization) huddleService.openHuddle(organization.id)
+                router.push('/huddle')
+              })
+            }
+          >
+            <Users />
+            Start the leadership huddle
+          </CommandItem>
+          <CommandItem
+            value="toggle sidebar collapse navigation"
+            onSelect={() => run(() => useStore.getState().toggleSidebar())}
+          >
+            <PanelLeft />
+            {sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          </CommandItem>
           <CommandItem value="show blocked work" onSelect={() => run(() => router.push('/blocked'))}>
             <OctagonAlert />
             Show blocked work

@@ -20,12 +20,21 @@ export function Sparkline({
   series,
   periods,
   height = 36,
+  mono = false,
   className,
 }: {
   metric: Metric
   series: (number | null)[]
   periods: string[]
   height?: number
+  /**
+   * One muted colour for every bar instead of per-bar health.
+   *
+   * Where the value and its target already sit beside the chart, ten
+   * red bars say nothing the number has not already said — they just
+   * add heat. In that context the sparkline's only job is shape.
+   */
+  mono?: boolean
   className?: string
 }) {
   const values = series.filter((value): value is number => value !== null)
@@ -66,7 +75,10 @@ export function Sparkline({
         return (
           <span
             key={period || index}
-            className={cn('flex-1 rounded-t-[1px]', HEALTH_STYLE[metricHealth(metric, value)].dot)}
+            className={cn(
+              'flex-1 rounded-t-[1px]',
+              mono ? 'bg-muted-foreground/35' : HEALTH_STYLE[metricHealth(metric, value)].dot,
+            )}
             // A floor of 2px so a genuine zero still draws something —
             // an invisible bar reads as missing data, which it is not.
             style={{ height: `${Math.max(2, ratio * height)}px` }}
