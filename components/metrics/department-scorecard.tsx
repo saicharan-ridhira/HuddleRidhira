@@ -1,16 +1,19 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ChartNoAxesColumn, Plus } from 'lucide-react'
+import { ChartNoAxesColumn, Plus, Target } from 'lucide-react'
 import type { EngineContext } from '@/lib/engine/context'
 import {
   formatMetricValue,
   huddleScorecard,
+  metricHealth,
+  metricReading,
   metricSeries,
+  rollupSeries,
   scorecardSummary,
 } from '@/lib/engine/metrics'
-import { formatPeriod, periodsBack, quarterOf } from '@/lib/engine/periods'
+import { periodsBack, quarterOf, quarterProgress } from '@/lib/engine/periods'
 import { useMetrics, useRocks } from '@/lib/store/selectors'
 import type { Department, Metric } from '@/lib/types'
 import { Button } from '@/components/ui/button'
@@ -107,86 +110,190 @@ function Trends({ departmentId, metrics, ctx }: { departmentId: string; metrics:
 }
 
 /**
- * What a department brings to the huddle.
+ * The numbers a department brings to the huddle.
  *
- * Only the numbers that need a conversation: off track, at risk, then
- * anything nobody has reported. Reading out the green ones is the
- * meeting habit this product exists to shorten, so they are not here.
+ * Off track first, then at risk, then anything nobody reported. The
+ * on-track ones are counted but not listed — a meeting that reads every
+ * green number aloud is the meeting this product exists to shorten, and
+ * they are one click away for the turn where somebody asks.
+ *
+ * Every row states its target beside its value, because a number without
+ * one is trivia. That pairing is the whole content of this section: the
+ * room is deciding whether a gap needs an action, and it cannot do that
+ * from the value alone.
  */
 export function HuddleScorecard({ department, ctx }: { department: Department; ctx: EngineContext }) {
   const metrics = useMetrics(department.id)
-  const readings = useMemo(() => huddleScorecard(metrics, department.id, ctx), [metrics, department.id, ctx])
+  const [showAll, setShowAll] = useState(false)
+
   const summary = useMemo(() => scorecardSummary(metrics, department.id, ctx), [metrics, department.id, ctx])
+  const attention = useMemo(() => huddleScorecard(metrics, department.id, ctx), [metrics, department.id, ctx])
+  const all = useMemo(
+    () => metrics.map((metric) => metricReading(metric, department.id, ctx)),
+    [metrics, department.id, ctx],
+  )
 
   const criticalNumber = department.criticalNumber
   const critical = criticalNumber ? ctx.metrics[criticalNumber.metricId] : undefined
 
   if (metrics.length === 0) return null
 
+  // The Critical Number has its own band directly above; repeating it in
+  // the list below would spend two of the section's few lines saying one
+  // thing.
+  const rows = (showAll ? all : attention).filter((reading) => reading.metric.id !== criticalNumber?.metricId)
+
   return (
-    <section className="flex flex-col gap-2 rounded-lg border border-border bg-card/60 px-3 py-2.5">
-      <div className="flex flex-wrap items-center gap-2">
-        <h3 className="text-[12px] font-semibold">Scorecard</h3>
-        {summary.onTrack > 0 && (
-          <span className="text-[11px] text-muted-foreground">{summary.onTrack} on track</span>
-        )}
-        {critical && criticalNumber && (
-          <span className="ml-auto text-[11px] text-muted-foreground">
-            Critical Number ·{' '}
-            <span className="font-medium text-foreground">
-              {critical.name} {critical.direction === 'up-is-good' ? '≥' : '≤'}{' '}
-              {formatMetricValue(criticalNumber.target, critical.unit)}
-            </span>
-          </span>
+    <section className="flex flex-col gap-1.5">
+      <div className="flex items-baseline gap-2">
+        <h3 className="text-[13px] font-semibold">Numbers</h3>
+        <span className="text-[11px] text-muted-foreground">
+          {summary.offTrack > 0 && <span className="font-medium text-blocked">{summary.offTrack} off track</span>}
+          {summary.offTrack > 0 && (summary.atRisk > 0 || summary.missing > 0) && ' · '}
+          {summary.atRisk > 0 && <span className="font-medium text-overdue">{summary.atRisk} at risk</span>}
+          {summary.atRisk > 0 && summary.missing > 0 && ' · '}
+          {summary.missing > 0 && `${summary.missing} not reported`}
+          {attention.length === 0 && <span className="text-unblocked">All {summary.total} on track</span>}
+        </span>
+
+        {attention.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowAll((previous) => !previous)}
+            className="ml-auto text-[11px] text-muted-foreground hover:text-foreground"
+          >
+            {showAll ? 'Only what needs attention' : `Show all ${summary.total}`}
+          </button>
         )}
       </div>
 
-      {readings.length === 0 ? (
-        <p className="text-[12px] text-unblocked">Every number on track.</p>
-      ) : (
-        <ul className="flex flex-col gap-0.5">
-          {readings.map((reading) => {
-            const periods = periodsBack(reading.metric.cadence, 8, ctx.now)
+      {critical && criticalNumber && (
+        <CriticalNumberLine department={department} metric={critical} criticalNumber={criticalNumber} ctx={ctx} />
+      )}
+
+      {rows.length > 0 && (
+        <ul className="flex flex-col overflow-hidden rounded-md border border-border bg-card">
+          {rows.map((reading) => {
+            const periods = periodsBack(reading.metric.cadence, 10, ctx.now)
             const series = metricSeries(reading.metric, department.id, periods, ctx)
 
             return (
-              <li key={reading.metric.id} className="flex items-center gap-2 rounded px-1 py-1 hover:bg-accent/40">
-                <span
-                  className={cn('size-1.5 shrink-0 rounded-full', HEALTH_STYLE[reading.health].dot)}
-                  aria-hidden
-                />
+              <li
+                key={reading.metric.id}
+                className="flex h-8 items-center gap-2 border-b border-border px-2.5 last:border-b-0"
+              >
+                <span className={cn('size-1.5 shrink-0 rounded-full', HEALTH_STYLE[reading.health].dot)} aria-hidden />
                 <span className="min-w-0 flex-1 truncate text-[12px]">{reading.metric.name}</span>
 
                 <Sparkline
                   metric={reading.metric}
                   series={series}
                   periods={periods}
-                  height={16}
-                  className="hidden w-20 sm:flex"
+                  height={14}
+                  mono
+                  className="hidden w-16 shrink-0 sm:flex"
                 />
 
-                <span className={cn('text-[12px] font-medium tabular-nums', HEALTH_STYLE[reading.health].text)}>
+                <span
+                  className={cn(
+                    'w-20 shrink-0 text-right text-[12px] font-semibold tabular-nums',
+                    HEALTH_STYLE[reading.health].text,
+                  )}
+                >
                   {formatMetricValue(reading.value, reading.metric.unit)}
                 </span>
-                {reading.metric.target !== null && (
-                  <span className="w-14 text-right text-[10px] tabular-nums text-muted-foreground">
-                    {reading.metric.direction === 'up-is-good' ? '≥' : '≤'}{' '}
-                    {formatMetricValue(reading.metric.target, reading.metric.unit)}
-                  </span>
-                )}
-                <Trend improvement={reading.improvement} />
+
+                {/* The target, always next to the value. A number on its
+                    own cannot tell the room whether to do anything. */}
+                <span className="w-20 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
+                  {reading.metric.target === null
+                    ? '—'
+                    : `${reading.metric.direction === 'up-is-good' ? '≥' : '≤'} ${formatMetricValue(reading.metric.target, reading.metric.unit)}`}
+                </span>
+
+                <Trend improvement={reading.improvement} className="w-5 shrink-0 justify-end" />
               </li>
             )
           })}
         </ul>
       )}
-
-      {summary.missing > 0 && (
-        <p className="text-[11px] text-muted-foreground">
-          {summary.missing} {summary.missing === 1 ? 'number has' : 'numbers have'} not been reported for{' '}
-          {formatPeriod('daily', periodsBack('daily', 1, ctx.now)[0] ?? '')}.
-        </p>
-      )}
     </section>
   )
+}
+
+/** The one number the department is pushing this quarter, on one line. */
+function CriticalNumberLine({
+  department,
+  metric,
+  criticalNumber,
+  ctx,
+}: {
+  department: Department
+  metric: Metric
+  criticalNumber: NonNullable<Department['criticalNumber']>
+  ctx: EngineContext
+}) {
+  const periods = periodsBack(metric.cadence, quarterPeriodCount(metric.cadence, ctx.now), ctx.now)
+  const achieved = rollupSeries(metric, metricSeries(metric, department.id, periods, ctx))
+  const health = metricHealth({ ...metric, target: criticalNumber.target }, achieved)
+  const pace = quarterProgress(ctx.now)
+
+  const share =
+    achieved === null || criticalNumber.target === 0
+      ? null
+      : metric.direction === 'up-is-good'
+        ? achieved / criticalNumber.target
+        : criticalNumber.target / (achieved || criticalNumber.target)
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 rounded-md border border-border bg-card px-2.5 py-2">
+      <Target className="size-3.5 shrink-0 text-muted-foreground" />
+      <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">Critical number</span>
+      <span className="text-[12px]">{metric.name}</span>
+
+      <span className={cn('text-[15px] font-semibold tabular-nums', HEALTH_STYLE[health].text)}>
+        {formatMetricValue(achieved, metric.unit)}
+      </span>
+      <span className="text-[11px] tabular-nums text-muted-foreground">
+        of {formatMetricValue(criticalNumber.target, metric.unit)}
+      </span>
+
+      {share !== null && (
+        <span className="ml-auto flex items-center gap-2">
+          <span className="relative h-1.5 w-28 shrink-0 overflow-hidden rounded-full bg-muted">
+            <span
+              className={cn('block h-full rounded-full', HEALTH_STYLE[health].dot)}
+              style={{ width: `${Math.min(100, Math.max(0, share * 100))}%` }}
+            />
+            {/* Where the quarter is. Being at 60% of the number means
+                nothing until you know whether 40% or 90% of the time is
+                gone — so the pace marker sits on the same bar. */}
+            <span
+              className="absolute inset-y-0 w-px bg-foreground/60"
+              style={{ left: `${pace * 100}%` }}
+              title={`${Math.round(pace * 100)}% of the quarter elapsed`}
+            />
+          </span>
+          <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+            {Math.round(share * 100)}% · {Math.round(pace * 100)}% of Q
+          </span>
+        </span>
+      )}
+    </div>
+  )
+}
+
+/** How many of the metric's own periods have elapsed this quarter. */
+function quarterPeriodCount(cadence: Metric['cadence'], now: Date): number {
+  const elapsedDays = Math.max(1, Math.ceil(quarterProgress(now) * 92))
+  switch (cadence) {
+    case 'daily':
+      return elapsedDays
+    case 'weekly':
+      return Math.max(1, Math.ceil(elapsedDays / 7))
+    case 'monthly':
+      return Math.max(1, Math.ceil(elapsedDays / 31))
+    case 'quarterly':
+      return 1
+  }
 }

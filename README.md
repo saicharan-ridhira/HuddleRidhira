@@ -54,8 +54,10 @@ Twenty steps, about eight minutes. This is the flow the prototype is built to ma
 **The huddle.** It lives in the sidebar, not inside a department — there is one, and it is between heads of department.
 
 14. **Huddle → Start the leadership huddle.** Attendance lists all four departments, each with its head. Click **Sales** to mark it absent — 3 / 4. Start.
-15. **Engineering is reviewed first, spoken for by Sai.** The agenda is one ranked list: **every blocker**, then the **top three backlog items**. Blockers are never capped — there are few and each is a real problem. Backlog is, because Engineering carries twenty-six untouched items and reading them all out would bury the three that matter. Click *Show 20 more backlog items*, then *Show fewer*.
-16. **Each row says why it is there.** Blocked · Not started · Holding up work · Overdue. Note that *overdue alone does not put an item on the agenda* — a late in-progress item is something the head already knows about; an untouched backlog item is exactly what never gets raised unless a meeting raises it.
+15. **Engineering is reviewed first, spoken for by Sai.** Four things are on screen and nothing else: **Numbers**, each with its target beside it and the Critical Number's pace against the quarter; **Blocked**, every one of them; and **Not started**, capped. Blockers are never capped — there are few and each is a real problem. Backlog is, because Engineering carries twenty-six untouched items and reading them all out would bury the three that matter. Click *Show all 26*, then *Show top few*.
+
+    Rows are one line until you click one. A room discusses one thing at a time, so only the open row carries its blocker detail and the controls for status, assignee and due date.
+16. **Each row says why it is there**, once — blocked work names what it is waiting for, which names the person who can unblock it. Note that *overdue alone does not put an item on the agenda* — a late in-progress item is something the head already knows about; an untouched backlog item is exactly what never gets raised unless a meeting raises it.
 17. **Capture the discussion.** On `ENG-124`, fill in *Why is it stuck?* and *Decision*, then add an action — "Follow up with Finance at 2pm", owner Sai, due Today.
 18. **The moment.** In the discussion panel's Dependencies section, click **ENG-120**. In the drawer that opens, set its status to **Done**. Close the drawer.
 
